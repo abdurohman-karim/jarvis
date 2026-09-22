@@ -27,6 +27,11 @@ fn main() {
     // init i18n
     i18n::init(&manager.lock().language);
 
+    // models registry: used to list selectable backends in the settings UI
+    if let Err(e) = jarvis_core::models::init() {
+        log::warn!("Models registry init failed: {}", e);
+    }
+
     // init voices
     if let Err(e) = voices::init(&manager.lock().voice, &manager.lock().language) {
         eprintln!("Failed to init voices: {}", e);
@@ -77,6 +82,7 @@ fn main() {
 
             // gliner
             tauri_commands::list_gliner_models,
+            tauri_commands::get_backend_options,
 
             // i18n
             tauri_commands::get_translations,

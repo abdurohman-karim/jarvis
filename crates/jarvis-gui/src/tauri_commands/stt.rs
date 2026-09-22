@@ -1,4 +1,4 @@
-use jarvis_core::{vosk_models, gliner_models};
+use jarvis_core::{vosk_models, gliner_models, models};
 use serde::Serialize;
 
 #[derive(Serialize)]
@@ -35,4 +35,11 @@ pub fn list_gliner_models() -> Vec<GlinerVariant> {
             value: m.value,
         })
         .collect()
+}
+
+// Selectable backends for a task ("intent", "slots", "vad", "noise_suppression", "stt").
+// The ids returned here are exactly what the matching setting key accepts.
+#[tauri::command]
+pub fn get_backend_options(task: models::Task) -> Vec<models::BackendOption> {
+    models::get_options(task)
 }

@@ -78,24 +78,32 @@ impl Settings {
                 self.wake_word_engine = match val.to_lowercase().as_str() {
                     "rustpotter" => WakeWordEngine::Rustpotter,
                     "vosk"       => WakeWordEngine::Vosk,
-                    "porcupine"  => WakeWordEngine::Porcupine,
+                    "porcupine" | "picovoice" => WakeWordEngine::Porcupine,
                     _ => return Err(format!("unknown wake word engine: '{}'", val)),
                 };
             }
+            // backend ids are lowercase (code backends: "none", "energy", "intent-classifier", ...;
+            // model ids come from model.toml and are lowercase by convention)
             "intent_backend" => {
-                self.intent_backend = val.to_string();
+                self.intent_backend = val.trim().to_lowercase();
             }
             "slots_backend" => {
-                self.slots_backend = val.to_string();
+                self.slots_backend = val.trim().to_lowercase();
             }
             "vad_backend" => {
-                self.vad_backend = val.to_string();
+                self.vad_backend = val.trim().to_lowercase();
             }
             "selected_gliner_model" => {
                 self.gliner_model = val.to_string();
             }
             "selected_vosk_model" => {
                 self.vosk_model = val.to_string();
+            }
+            "speech_to_text_engine" => {
+                self.speech_to_text_engine = match val.to_lowercase().as_str() {
+                    "vosk" => SpeechToTextEngine::Vosk,
+                    _ => return Err(format!("unknown speech to text engine: '{}'", val)),
+                };
             }
             "noise_suppression" => {
                 self.noise_suppression = match val.to_lowercase().as_str() {
@@ -181,4 +189,57 @@ impl Default for Settings {
 pub struct ApiKeys {
     pub picovoice: String,
     pub openai: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // every key listed in keys() must be readable and writable
+    #[test]
+    fn all_keys_are_readable_and_writable() {
+        let mut settings = Settings::default();
+        for key in Settings::keys() {
+            let value = settings.get(key)
+                .unwrap_or_else(|| panic!("get() does not know key '{}'", key));
+            settings.set(key, &value)
+                .unwrap_or_else(|e| panic!("set() rejected its own value for '{}': {}", key, e));
+            assert_eq!(settings.get(key).as_deref(), Some(value.as_str()), "round-trip changed '{}'", key);
+        }
+    }
+
+    #[test]
+    fn unknown_key_is_rejected() {
+        let mut settings = Settings::default();
+        assert!(settings.set("vad", "energy").is_err());
+        assert!(settings.get("vad").is_none());
+    }
+
+    // the ids the GUI shows come from models::catalog and must be accepted verbatim
+    #[test]
+    fn code_backend_ids_are_accepted() {
+        let mut settings = Settings::default();
+        for (key, value) in [
+            ("intent_backend", "intent-classifier"),
+            ("intent_backend", "none"),
+            ("slots_backend", "none"),
+            ("vad_backend", "energy"),
+            ("vad_backend", "nnnoiseless"),
+            ("vad_backend", "none"),
+            ("noise_suppression", "None"),
+            ("noise_suppression", "Nnnoiseless"),
+            ("selected_wake_word_engine", "Rustpotter"),
+            ("selected_wake_word_engine", "Vosk"),
+            ("selected_wake_word_engine", "Porcupine"),
+        ] {
+            settings.set(key, value).unwrap_or_else(|e| panic!("{}={}: {}", key, value, e));
+        }
+    }
+
+    #[test]
+    fn backend_ids_are_normalized() {
+        let mut settings = Settings::default();
+        settings.set("vad_backend", " Energy ").unwrap();
+        assert_eq!(settings.get("vad_backend").as_deref(), Some("energy"));
+    }
 }

@@ -28,10 +28,22 @@
     }
 
     // ### STATE
+    interface BackendOption {
+        id: string
+        name: string
+        model_id: string | null
+    }
+
     let availableVoices: VoiceMeta[] = []
     let availableMicrophones: Option[] = []
     let availableVoskModels: Option[] = []
     let availableGlinerModels: Option[] = []
+
+    // selectable backends per task, ids come straight from the backend and are what the
+    // matching setting key accepts (see jarvis_core::models::catalog)
+    let intentOptions: Option[] = []
+    let slotsOptions: Option[] = []
+    let vadOptions: Option[] = []
 
     let saving = false
     let saved = false
@@ -40,12 +52,12 @@
     let voiceVal = ""
     let selectedMicrophone = "-1"
     let selectedWakeWordEngine = "Rustpotter"
-    let selectedIntentRecognitionEngine = "IntentClassifier"
-    let selectedSlotExtractionEngine = "None"
+    let selectedIntentBackend = "intent-classifier"
+    let selectedSlotsBackend = "none"
     let selectedGlinerModel = ""
     let selectedVoskModel = ""
     let selectedNoiseSuppression = "None"
-    let selectedVad = "None"
+    let selectedVadBackend = "energy"
     let gainNormalizerEnabled = false
     let apiKeyPicovoice = ""
     let apiKeyOpenai = ""
@@ -78,12 +90,12 @@
                 invoke("db_write", { key: "assistant_voice", val: voiceVal }),
                 invoke("db_write", { key: "selected_microphone", val: selectedMicrophone }),
                 invoke("db_write", { key: "selected_wake_word_engine", val: selectedWakeWordEngine }),
-                invoke("db_write", { key: "selected_intent_recognition_engine", val: selectedIntentRecognitionEngine }),
-                invoke("db_write", { key: "selected_slot_extraction_engine", val: selectedSlotExtractionEngine }),
+                invoke("db_write", { key: "intent_backend", val: selectedIntentBackend }),
+                invoke("db_write", { key: "slots_backend", val: selectedSlotsBackend }),
                 invoke("db_write", { key: "selected_gliner_model", val: selectedGlinerModel }),
                 invoke("db_write", { key: "selected_vosk_model", val: selectedVoskModel }),
                 invoke("db_write", { key: "noise_suppression", val: selectedNoiseSuppression }),
-                invoke("db_write", { key: "vad", val: selectedVad }),
+                invoke("db_write", { key: "vad_backend", val: selectedVadBackend }),
                 invoke("db_write", { key: "gain_normalizer", val: gainNormalizerEnabled.toString() }),
                 invoke("db_write", { key: "api_key__picovoice", val: apiKeyPicovoice }),
                 invoke("db_write", { key: "api_key__openai", val: apiKeyOpenai })
@@ -128,16 +140,27 @@
             const glinerModels = await invoke<{ display_name: string; value: string }[]>("list_gliner_models")
             availableGlinerModels = glinerModels.map(m => ({ label: m.display_name, value: m.value }))
 
+            const toOptions = (opts: BackendOption[]): Option[] =>
+                opts.map(o => ({ label: o.id === "none" ? t("settings-disabled") : o.name, value: o.id }))
+            const [intentOpts, slotsOpts, vadOpts] = await Promise.all([
+                invoke<BackendOption[]>("get_backend_options", { task: "intent" }),
+                invoke<BackendOption[]>("get_backend_options", { task: "slots" }),
+                invoke<BackendOption[]>("get_backend_options", { task: "vad" }),
+            ])
+            intentOptions = toOptions(intentOpts)
+            slotsOptions = toOptions(slotsOpts)
+            vadOptions = toOptions(vadOpts)
+
             const [mic, wakeWord, intentReco, slotEngine, glinerModel, voskModel,
                    noiseSuppression, vad, gainNormalizer, pico, openai] = await Promise.all([
                 invoke<string>("db_read", { key: "selected_microphone" }),
                 invoke<string>("db_read", { key: "selected_wake_word_engine" }),
-                invoke<string>("db_read", { key: "selected_intent_recognition_engine" }),
-                invoke<string>("db_read", { key: "selected_slot_extraction_engine" }),
+                invoke<string>("db_read", { key: "intent_backend" }),
+                invoke<string>("db_read", { key: "slots_backend" }),
                 invoke<string>("db_read", { key: "selected_gliner_model" }),
                 invoke<string>("db_read", { key: "selected_vosk_model" }),
                 invoke<string>("db_read", { key: "noise_suppression" }),
-                invoke<string>("db_read", { key: "vad" }),
+                invoke<string>("db_read", { key: "vad_backend" }),
                 invoke<string>("db_read", { key: "gain_normalizer" }),
                 invoke<string>("db_read", { key: "api_key__picovoice" }),
                 invoke<string>("db_read", { key: "api_key__openai" })
@@ -145,12 +168,12 @@
 
             selectedMicrophone = mic || "-1"
             selectedWakeWordEngine = wakeWord || "Rustpotter"
-            selectedIntentRecognitionEngine = intentReco || "IntentClassifier"
-            selectedSlotExtractionEngine = slotEngine || "None"
+            selectedIntentBackend = intentReco || "intent-classifier"
+            selectedSlotsBackend = slotEngine || "none"
             selectedVoskModel = voskModel || ""
             selectedGlinerModel = glinerModel || ""
             selectedNoiseSuppression = noiseSuppression || "None"
-            selectedVad = vad || "None"
+            selectedVadBackend = vad || "energy"
             gainNormalizerEnabled = gainNormalizer === "true"
             apiKeyPicovoice = pico || ""
             apiKeyOpenai = openai || ""
@@ -212,12 +235,12 @@
                 options={[
                     { label: "Rustpotter", value: "Rustpotter" },
                     { label: "Vosk", value: "Vosk" },
-                    { label: "Picovoice Porcupine", value: "Picovoice" }
+                    { label: "Picovoice Porcupine", value: "Porcupine" }
                 ]}
             />
         </Field>
 
-        {#if selectedWakeWordEngine === "Picovoice"}
+        {#if selectedWakeWordEngine === "Porcupine"}
             <div class="notice warning">
                 <Icon name="alert" size={16} />
                 <div>
@@ -249,27 +272,19 @@
             </div>
         {/if}
 
-        <Field label={t("settings-intent-engine")} description={t("settings-intent-engine-desc")}>
-            <Select
-                bind:value={selectedIntentRecognitionEngine}
-                options={[
-                    { label: "Intent Classifier", value: "IntentClassifier" },
-                    { label: "Embedding Classifier", value: "EmbeddingClassifier" }
-                ]}
-            />
-        </Field>
+        {#key intentOptions}
+            <Field label={t("settings-intent-engine")} description={t("settings-intent-engine-desc")}>
+                <Select bind:value={selectedIntentBackend} options={intentOptions} />
+            </Field>
+        {/key}
 
-        <Field label={t("settings-slot-engine")} description={t("settings-slot-engine-desc")}>
-            <Select
-                bind:value={selectedSlotExtractionEngine}
-                options={[
-                    { label: t("settings-disabled"), value: "None" },
-                    { label: "GLiNER (NER)", value: "GLiNER" }
-                ]}
-            />
-        </Field>
+        {#key slotsOptions}
+            <Field label={t("settings-slot-engine")} description={t("settings-slot-engine-desc")}>
+                <Select bind:value={selectedSlotsBackend} options={slotsOptions} />
+            </Field>
+        {/key}
 
-        {#if selectedSlotExtractionEngine === "GLiNER"}
+        {#if selectedSlotsBackend !== "none"}
             {#key availableGlinerModels}
                 <Field label={t("settings-gliner-model")} description={t("settings-gliner-model-desc")}>
                     <Select
@@ -303,16 +318,11 @@
             />
         </Field>
 
-        <Field label={t("settings-vad")} description={t("settings-vad-desc")}>
-            <Select
-                bind:value={selectedVad}
-                options={[
-                    { label: t("settings-disabled"), value: "None" },
-                    { label: "Energy", value: "Energy" },
-                    { label: "Nnnoiseless", value: "Nnnoiseless" }
-                ]}
-            />
-        </Field>
+        {#key vadOptions}
+            <Field label={t("settings-vad")} description={t("settings-vad-desc")}>
+                <Select bind:value={selectedVadBackend} options={vadOptions} />
+            </Field>
+        {/key}
 
         <Field label={t("settings-gain-normalizer")} description={t("settings-gain-normalizer-desc")} inline>
             <Toggle bind:checked={gainNormalizerEnabled} />

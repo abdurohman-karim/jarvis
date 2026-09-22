@@ -30,8 +30,8 @@
             }
 
             wakeWordEngine = await invoke<string>("db_read", { key: "selected_wake_word_engine" }) || "Rustpotter"
-            sttEngine = await invoke<string>("db_read", { key: "selected_stt_engine" }) || "Vosk"
-            vad = await invoke<string>("db_read", { key: "vad" }) || ""
+            sttEngine = await invoke<string>("db_read", { key: "speech_to_text_engine" }) || "Vosk"
+            vad = await invoke<string>("db_read", { key: "vad_backend" }) || ""
         } catch (err) {
             console.error("Failed to load stats:", err)
             microphoneName = t("stats-not-selected")
@@ -51,7 +51,7 @@
         <span class="stat-label">{t("stats-neural-networks")}</span>
         <span class="stat-value">
             {wakeWordEngine} · {sttEngine}
-            {#if vad && vad !== "None"}<span class="stat-sub">· VAD {vad}</span>{/if}
+            {#if vad && vad !== "none"}<span class="stat-sub">· VAD {vad}</span>{/if}
         </span>
     </div>
 
