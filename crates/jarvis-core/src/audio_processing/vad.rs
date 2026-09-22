@@ -7,6 +7,7 @@ use parking_lot::Mutex;
 use crate::DB;
 
 static BACKEND: OnceCell<String> = OnceCell::new();
+static ENERGY_STATE: Mutex<Option<energy::EnergyVad>> = Mutex::new(None);
 
 #[cfg(feature = "nnnoiseless")]
 static NNNOISELESS_STATE: OnceCell<Mutex<crate::models::nnnoiseless::NnnoiselessVAD>> = OnceCell::new();
@@ -27,7 +28,8 @@ pub fn init() {
             info!("VAD: disabled");
         }
         "energy" => {
-            info!("VAD: Energy-based");
+            *ENERGY_STATE.lock() = Some(energy::EnergyVad::new());
+            info!("VAD: Energy-based (adaptive)");
         }
         #[cfg(feature = "nnnoiseless")]
         "nnnoiseless" => {
@@ -36,9 +38,24 @@ pub fn init() {
         }
         other => {
             warn!("Unknown VAD backend '{}', falling back to energy", other);
-            // overwrite with energy
-            // (BACKEND already set, so energy::detect will be used via fallthrough)
+            *ENERGY_STATE.lock() = Some(energy::EnergyVad::new());
         }
+    }
+}
+
+fn energy_detect(input: &[i16]) -> (bool, f32) {
+    let mut state = ENERGY_STATE.lock();
+    state.get_or_insert_with(energy::EnergyVad::new).detect(input)
+}
+
+// human readable state of the detector, for logs ("level -41.2 dB, floor -58.0 dB")
+pub fn describe(input: &[i16]) -> String {
+    match BACKEND.get().map(|s| s.as_str()) {
+        Some("energy") | None => {
+            let floor = ENERGY_STATE.lock().as_ref().map(|s| s.noise_floor_db()).unwrap_or(f32::NAN);
+            format!("level {:.1} dB, floor {:.1} dB", energy::rms_dbfs(input), floor)
+        }
+        Some(other) => other.to_string(),
     }
 }
 
@@ -46,16 +63,16 @@ pub fn init() {
 pub fn detect(input: &[i16]) -> (bool, f32) {
     match BACKEND.get().map(|s| s.as_str()) {
         Some("none") | None => none::detect(input),
-        Some("energy") => energy::detect(input),
+        Some("energy") => energy_detect(input),
         #[cfg(feature = "nnnoiseless")]
         Some("nnnoiseless") => {
             if let Some(state) = NNNOISELESS_STATE.get() {
                 state.lock().detect(input)
             } else {
-                energy::detect(input)
+                energy_detect(input)
             }
         }
-        _ => energy::detect(input),
+        _ => energy_detect(input),
     }
 }
 
@@ -67,6 +84,10 @@ pub fn reset() {
                 state.lock().reset();
             }
         }
-        _ => {}
+        _ => {
+            if let Some(state) = ENERGY_STATE.lock().as_mut() {
+                state.reset();
+            }
+        }
     }
 }

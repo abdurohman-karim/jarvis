@@ -159,7 +159,18 @@ pub const DEFAULT_NOISE_SUPPRESSION: NoiseSuppressionBackend = NoiseSuppressionB
 pub const DEFAULT_GAIN_NORMALIZER: bool = false;
 
 // VAD settings
-pub const VAD_ENERGY_THRESHOLD: f32 = 100.0;  // RMS threshold for energy-based VAD
+// energy VAD (adaptive, levels in dBFS; a plain 512-sample frame of room noise on a laptop
+// mic is typically around -55..-45 dBFS, speech -35..-15 dBFS)
+pub const VAD_ENERGY_INITIAL_FLOOR_DB: f32 = -60.0;  // assumed room level before calibration
+pub const VAD_ENERGY_CALIBRATION_FRAMES: u32 = 16;   // ~0.5 s of fast floor adaptation at startup
+pub const VAD_ENERGY_ON_MARGIN_DB: f32 = 9.0;        // voice starts this far above the noise floor
+pub const VAD_ENERGY_OFF_MARGIN_DB: f32 = 5.0;       // ...and ends this far above it (hysteresis)
+pub const VAD_ENERGY_MIN_DB: f32 = -52.0;            // never trigger below this level (≈ RMS 82)
+pub const VAD_ENERGY_ONSET_FRAMES: u32 = 3;          // frames (~100 ms) above threshold to start; keyboard clicks are shorter
+pub const VAD_ENERGY_HANGOVER_FRAMES: u32 = 4;       // frames below threshold to end (~130 ms)
+pub const VAD_ENERGY_FLOOR_DOWN_ALPHA: f32 = 0.10;   // floor follows quieter frames quickly (~0.3 s)
+pub const VAD_ENERGY_FLOOR_UP_ALPHA: f32 = 0.02;     // ...louder (sub-threshold) frames slower (~1.5 s)
+pub const VAD_ENERGY_FLOOR_UP_ALPHA_DURING_VOICE: f32 = 0.004; // ...and speech very slowly (~8 s)
 pub const VAD_NNNOISELESS_THRESHOLD: f32 = 0.8;  // probability threshold for nnnoiseless
 pub const VAD_SILENCE_FRAMES: u32 = 15;  // frames of silence before speech end (~480ms)
 

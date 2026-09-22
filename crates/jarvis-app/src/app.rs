@@ -167,7 +167,8 @@ fn processing_loop(frames: Receiver<Frame>, executor: ExecutorHandle) -> Result<
 
                 if processed.is_voice {
                     // voice started! flush buffer to the wake word engine
-                    info!("VAD: Voice started, flushing {} buffered frames", audio_buffer.len());
+                    info!("VAD: Voice started ({}), flushing {} buffered frames",
+                        audio_processing::vad::describe(&processed.samples), audio_buffer.len());
 
                     for buffered_frame in audio_buffer.drain_all() {
                         listener::data_callback(&buffered_frame);
