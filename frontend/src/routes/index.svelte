@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount, onDestroy } from "svelte"
+    import { onMount } from "svelte"
     import { invoke } from "@tauri-apps/api/core"
 
     import StatusOrb from "@/components/StatusOrb.svelte"
@@ -13,8 +13,6 @@
         jarvisState,
         lastRecognizedText,
         updateJarvisStats,
-        enableIpc,
-        disableIpc,
         startAssistant,
         stopAssistant,
         assistantBusy,
@@ -26,24 +24,8 @@
 
     $: t = (key: string) => translate($translations, key)
 
-    let wasRunning = false
-
-    isJarvisRunning.subscribe((value) => {
-        if (value) {
-            enableIpc()
-            wasRunning = true
-        } else if (wasRunning) {
-            disableIpc()
-            wasRunning = false
-        }
-    })
-
     onMount(() => {
         updateJarvisStats()
-    })
-
-    onDestroy(() => {
-        disableIpc()
     })
 
     function toggleMute() {

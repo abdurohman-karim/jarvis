@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Frontend deps
+        run: npm ci
+        working-directory: frontend
+
+      - name: Frontend type check
+        run: npx svelte-check --ignore '.routify' --no-tsconfig
+        working-directory: frontend
+
+      - name: Frontend build
+        run: npm run build
+        working-directory: frontend
+
+      - name: Rust tests
+        run: cargo test -p jarvis-core --lib
+
+      - name: Build assistant + cli
+        run: cargo build -p jarvis-app -p jarvis-cli
+
+      - name: Check GUI
+        run: cargo check -p jarvis-gui --no-default-features
+
+      - name: Warnings are errors
+        run: cargo build -p jarvis-app -p jarvis-cli
+        env:
+          RUSTFLAGS: -D warnings
