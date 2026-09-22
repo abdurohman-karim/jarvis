@@ -53,6 +53,9 @@ pub enum IpcEvent {
 
     // settings were re-read and applied to the running pipeline
     SettingsApplied { changed: Vec<String> },
+
+    // a question was answered by the language model
+    AiAnswer { question: String, answer: String },
 }
 
 // Actions sent from GUI to jarvis-app

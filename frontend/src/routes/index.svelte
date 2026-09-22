@@ -13,6 +13,7 @@
         isJarvisRunning,
         jarvisState,
         lastRecognizedText,
+        lastAiAnswer,
         updateJarvisStats,
         startAssistant,
         stopAssistant,
@@ -77,6 +78,9 @@
             {:else if !$isJarvisRunning}
                 <p class="hero-title">{t("assistant-not-running")}</p>
                 <p class="hero-hint">{t("assistant-offline-hint")}</p>
+            {:else if $lastAiAnswer && $lastAiAnswer.question === $lastRecognizedText}
+                <p class="hero-title ai-answer">{$lastAiAnswer.answer}</p>
+                <p class="hero-hint">«{$lastAiAnswer.question}»</p>
             {:else if $lastRecognizedText}
                 <p class="hero-title">«{$lastRecognizedText}»</p>
                 <p class="hero-hint">{t("assistant-last-heard")}</p>
@@ -126,7 +130,12 @@
 
     .hero-text {
         text-align: center;
-        max-width: 360px;
+        max-width: 420px;
+    }
+
+    .ai-answer {
+        font-weight: 500;
+        line-height: 1.5;
     }
 
     .hero-title {

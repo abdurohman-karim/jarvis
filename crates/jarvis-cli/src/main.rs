@@ -209,6 +209,10 @@ fn follow(ws: &mut Socket, timeout: Option<Duration>, until_idle: bool) -> Resul
                 println!("error: {}", event["message"].as_str().unwrap_or(""));
                 saw_activity = true;
             }
+            "ai_answer" => {
+                println!("answer: {}", event["answer"].as_str().unwrap_or(""));
+                saw_activity = true;
+            }
             "settings_applied" => {
                 println!("settings applied: {}", event["changed"]);
                 saw_activity = true;

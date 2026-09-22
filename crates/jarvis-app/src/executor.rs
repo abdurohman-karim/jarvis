@@ -4,7 +4,7 @@
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::Arc;
 
-use jarvis_core::{commands, config, i18n, intent, slots, voices, ipc::{self, IpcEvent}};
+use jarvis_core::{ai, commands, config, i18n, intent, slots, speech, voices, ipc::{self, IpcEvent}, DB};
 
 pub enum ExecRequest {
     Command {
@@ -80,6 +80,35 @@ pub fn strip_assistant_phrases(text: &str) -> String {
     filtered.trim().to_string()
 }
 
+fn ai_fallback_enabled() -> bool {
+    DB.get().map(|db| db.read().ai_fallback).unwrap_or(false) && ai::is_configured()
+}
+
+// Ask the language model and read the answer out loud. Returns false if it could not answer,
+// so the caller can fall back to the usual "command not found" reaction.
+fn answer_with_ai(question: &str) -> bool {
+    let language = i18n::get_language();
+
+    match ai::ask(question, &language) {
+        Ok(answer) => {
+            info!("AI answer: {}", answer);
+            ipc::send(IpcEvent::AiAnswer { question: question.to_string(), answer: answer.clone() });
+
+            if !speech::say(&answer, &language) {
+                // synthesis unavailable or switched off: at least acknowledge out loud
+                voices::play_ok();
+            }
+
+            ipc::send(IpcEvent::Idle);
+            true
+        }
+        Err(e) => {
+            warn!("AI could not answer: {}", e);
+            false
+        }
+    }
+}
+
 fn reload_commands(rt: &tokio::runtime::Runtime) {
     info!("Reloading commands...");
     match commands::reload() {
@@ -113,6 +142,12 @@ fn execute(text: &str, rt: &tokio::runtime::Runtime) -> bool {
 
     let Some((cmd_path, cmd_config)) = cmd_result else {
         info!("No command found for: {}", text);
+
+        // nothing matched: let the language model answer, if it is configured
+        if ai_fallback_enabled() && answer_with_ai(text) {
+            return false;
+        }
+
         voices::play_not_found();
         ipc::send(IpcEvent::Error { message: format!("Command not found: {}", text) });
         ipc::send(IpcEvent::Idle);

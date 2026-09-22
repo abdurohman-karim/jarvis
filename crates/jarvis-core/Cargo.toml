@@ -55,9 +55,11 @@ winrt-notification = { workspace = true, optional = true }
 default = ["jarvis_app"]
 jarvis_app = [
     "vosk", "intent-classifier", "fastembed", "tokio", "nnnoiseless", "tokio-tungstenite", "futures-util",
-    "lua",
+    "lua", "ai",
     "ort", "ndarray", "tokenizers", "regex",]
 
 intent = ["intent-classifier", "tokio"]
 lua = ["mlua", "reqwest", "winrt-notification"]
+# large language model answers (Gemini)
+ai = ["reqwest"]
 lua_only = ["lua", "tokio"]

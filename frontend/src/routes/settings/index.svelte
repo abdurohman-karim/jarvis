@@ -67,6 +67,10 @@
     let gainNormalizerEnabled = false
     let apiKeyPicovoice = ""
     let apiKeyOpenai = ""
+    let apiKeyGemini = ""
+    let aiModel = ""
+    let aiFallback = false
+    let speakAiAnswers = true
 
     let logFilePath = ""
     appInfo.subscribe(info => {
@@ -120,6 +124,10 @@
                 ["gain_normalizer", gainNormalizerEnabled.toString()],
                 ["api_key__picovoice", apiKeyPicovoice],
                 ["api_key__openai", apiKeyOpenai],
+                ["api_key__gemini", apiKeyGemini],
+                ["ai_model", aiModel],
+                ["ai_fallback", aiFallback.toString()],
+                ["speak_ai_answers", speakAiAnswers.toString()],
             ]})
 
             assistantVoice.set(voiceVal)
@@ -191,7 +199,8 @@
             vadOptions = toOptions(vadOpts)
 
             const [mic, wakeWord, intentReco, slotEngine, glinerModel, voskModel,
-                   noiseSuppression, vad, gainNormalizer, pico, openai] = await Promise.all([
+                   noiseSuppression, vad, gainNormalizer, pico, openai,
+                   gemini, model, fallback, speakAnswers] = await Promise.all([
                 invoke<string>("db_read", { key: "selected_microphone" }),
                 invoke<string>("db_read", { key: "selected_wake_word_engine" }),
                 invoke<string>("db_read", { key: "intent_backend" }),
@@ -202,7 +211,11 @@
                 invoke<string>("db_read", { key: "vad_backend" }),
                 invoke<string>("db_read", { key: "gain_normalizer" }),
                 invoke<string>("db_read", { key: "api_key__picovoice" }),
-                invoke<string>("db_read", { key: "api_key__openai" })
+                invoke<string>("db_read", { key: "api_key__openai" }),
+                invoke<string>("db_read", { key: "api_key__gemini" }),
+                invoke<string>("db_read", { key: "ai_model" }),
+                invoke<string>("db_read", { key: "ai_fallback" }),
+                invoke<string>("db_read", { key: "speak_ai_answers" })
             ])
 
             selectedMicrophone = mic || "-1"
@@ -216,6 +229,10 @@
             gainNormalizerEnabled = gainNormalizer === "true"
             apiKeyPicovoice = pico || ""
             apiKeyOpenai = openai || ""
+            apiKeyGemini = gemini || ""
+            aiModel = model || ""
+            aiFallback = fallback === "true"
+            speakAiAnswers = speakAnswers !== "false"
         } catch (err) {
             console.error("failed to load settings:", err)
         }
@@ -373,10 +390,22 @@
         </Field>
     </Card>
 
-    <!-- api keys -->
-    <Card title={t("settings-api-keys")}>
-        <Field label={t("settings-openai-key")} description={t("settings-openai-not-supported")}>
-            <Input bind:value={apiKeyOpenai} icon="key" placeholder="sk-..." type="password" mono disabled />
+    <!-- ai -->
+    <Card title={t("settings-ai")} description={t("settings-ai-desc")}>
+        <Field label={t("settings-ai-key")} description={t("settings-ai-key-desc")}>
+            <Input bind:value={apiKeyGemini} icon="key" placeholder="AIza..." type="password" mono />
+        </Field>
+
+        <Field label={t("settings-ai-model")} description={t("settings-ai-model-desc")}>
+            <Input bind:value={aiModel} icon="cpu" placeholder="gemini-3.5-flash" mono />
+        </Field>
+
+        <Field label={t("settings-ai-fallback")} description={t("settings-ai-fallback-desc")} inline>
+            <Toggle bind:checked={aiFallback} disabled={!apiKeyGemini} />
+        </Field>
+
+        <Field label={t("settings-ai-speak")} description={t("settings-ai-speak-desc")} inline>
+            <Toggle bind:checked={speakAiAnswers} />
         </Field>
     </Card>
 

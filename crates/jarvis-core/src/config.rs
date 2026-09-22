@@ -158,6 +158,15 @@ pub const VOSK_SPEECH_RECOGNIZER_WORDS: bool = false;
 pub const VOSK_SPEECH_PARTIAL_WORDS: bool = false;
 
 // IRE (intents recognition)
+// ### AI (Gemini)
+pub const DEFAULT_AI_MODEL: &str = "gemini-3.5-flash";
+pub const DEFAULT_AI_FALLBACK: bool = false;      // off until a key is configured
+pub const DEFAULT_SPEAK_AI_ANSWERS: bool = true;
+pub const AI_TIMEOUT_SECONDS: u64 = 20;
+pub const AI_MAX_OUTPUT_TOKENS: u32 = 300;
+// rough speaking rate of the system voices, used to guess how long an answer is audible
+pub const TTS_WORDS_PER_MINUTE: u64 = 150;
+
 pub const INTENT_CLASSIFIER_MIN_CONFIDENCE: f64 = 0.75;
 
 

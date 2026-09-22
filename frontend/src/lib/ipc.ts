@@ -24,6 +24,8 @@ export const commandsVersion = writable(0)
 export const lastAppliedSettings = writable<string[] | null>(null)
 // set to the assistant's protocol version when it differs from this UI's
 export const protocolMismatch = writable<number | null>(null)
+// last answer from the language model
+export const lastAiAnswer = writable<{ question: string; answer: string } | null>(null)
 
 // ### CONNECTION ###
 
@@ -177,6 +179,11 @@ function handleEvent(data: IpcEvent) {
 
         case "settings_applied":
             lastAppliedSettings.set(data.changed)
+            break
+
+        case "ai_answer":
+            lastAiAnswer.set({ question: data.question, answer: data.answer })
+            lastRecognizedText.set(data.question)
             break
     }
 }

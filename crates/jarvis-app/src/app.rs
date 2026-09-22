@@ -304,6 +304,9 @@ fn processing_loop(mut frames: Receiver<Frame>, executor: ExecutorHandle) -> Res
                     info!("Wake word activated!");
                     ipc::send(IpcEvent::WakeWordDetected);
 
+                    // stop reading out a previous answer, the user is talking to us
+                    jarvis_core::speech::stop();
+
                     // a command still running in the executor keeps running, but its
                     // chain result is no longer relevant
                     running_command = None;

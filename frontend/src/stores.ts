@@ -20,7 +20,8 @@ export {
     applySettings,
     isMuted,
     commandsVersion,
-    lastAppliedSettings
+    lastAppliedSettings,
+    lastAiAnswer
 } from "./lib/ipc"
 
 import { get } from "svelte/store"

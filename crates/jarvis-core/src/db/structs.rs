@@ -34,12 +34,32 @@ pub struct Settings {
     pub language: String,
 
     pub api_keys: ApiKeys,
+
+    // ask a language model when no command matched
+    #[serde(default = "default_ai_fallback")]
+    pub ai_fallback: bool,
+    #[serde(default)]
+    pub ai_model: String,
+    // read AI answers out loud with the system speech synthesis
+    #[serde(default = "default_speak_ai_answers")]
+    pub speak_ai_answers: bool,
 }
+
+fn default_ai_fallback() -> bool { config::DEFAULT_AI_FALLBACK }
+fn default_speak_ai_answers() -> bool { config::DEFAULT_SPEAK_AI_ANSWERS }
 
 fn default_intent_backend() -> String { config::DEFAULT_INTENT_BACKEND.to_string() }
 fn default_slots_backend() -> String { config::DEFAULT_SLOTS_BACKEND.to_string() }
 fn default_vad_backend() -> String { config::DEFAULT_VAD_BACKEND.to_string() }
 fn default_language() -> String { crate::i18n::detect_system_language().to_string() }
+
+fn parse_bool(val: &str) -> Result<bool, String> {
+    match val.trim().to_lowercase().as_str() {
+        "true" => Ok(true),
+        "false" => Ok(false),
+        _ => Err(format!("expected 'true' or 'false', got: '{}'", val)),
+    }
+}
 
 // ### KEY-VALUE ACCESS
 
@@ -61,6 +81,10 @@ impl Settings {
             "language"                  => Some(self.language.clone()),
             "api_key__picovoice"        => Some(self.api_keys.picovoice.clone()),
             "api_key__openai"           => Some(self.api_keys.openai.clone()),
+            "api_key__gemini"           => Some(self.api_keys.gemini.clone()),
+            "ai_fallback"               => Some(self.ai_fallback.to_string()),
+            "ai_model"                  => Some(self.ai_model.clone()),
+            "speak_ai_answers"          => Some(self.speak_ai_answers.to_string()),
             _ => None,
         }
     }
@@ -124,11 +148,7 @@ impl Settings {
                 };
             }
             "gain_normalizer" => {
-                self.gain_normalizer = match val.to_lowercase().as_str() {
-                    "true"  => true,
-                    "false" => false,
-                    _ => return Err(format!("expected 'true' or 'false', got: '{}'", val)),
-                };
+                self.gain_normalizer = parse_bool(val)?;
             }
             "language" => {
                 self.language = val.to_string();
@@ -138,6 +158,18 @@ impl Settings {
             }
             "api_key__openai" => {
                 self.api_keys.openai = val.to_string();
+            }
+            "api_key__gemini" => {
+                self.api_keys.gemini = val.trim().to_string();
+            }
+            "ai_model" => {
+                self.ai_model = val.trim().to_string();
+            }
+            "ai_fallback" => {
+                self.ai_fallback = parse_bool(val)?;
+            }
+            "speak_ai_answers" => {
+                self.speak_ai_answers = parse_bool(val)?;
             }
             _ => return Err(format!("unknown setting: '{}'", key)),
         }
@@ -161,6 +193,10 @@ impl Settings {
             "language",
             "api_key__picovoice",
             "api_key__openai",
+            "api_key__gemini",
+            "ai_fallback",
+            "ai_model",
+            "speak_ai_answers",
         ]
     }
 }
@@ -191,7 +227,12 @@ impl Default for Settings {
             api_keys: ApiKeys {
                 picovoice: String::from(""),
                 openai: String::from(""),
+                gemini: String::from(""),
             },
+
+            ai_fallback: config::DEFAULT_AI_FALLBACK,
+            ai_model: String::new(),
+            speak_ai_answers: config::DEFAULT_SPEAK_AI_ANSWERS,
         }
     }
 }
@@ -200,6 +241,8 @@ impl Default for Settings {
 pub struct ApiKeys {
     pub picovoice: String,
     pub openai: String,
+    #[serde(default)]
+    pub gemini: String,
 }
 
 #[cfg(test)]

@@ -44,6 +44,11 @@ pub mod voices;
 
 pub mod text;
 
+#[cfg(feature = "ai")]
+pub mod ai;
+
+pub mod speech;
+
 #[cfg(feature = "jarvis_app")]
 pub mod reconfigure;
 

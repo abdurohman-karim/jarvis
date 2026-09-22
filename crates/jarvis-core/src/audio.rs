@@ -30,6 +30,11 @@ pub fn output_busy_for() -> Option<Duration> {
     until.checked_duration_since(Instant::now())
 }
 
+// Mark our own output audible for `duration` (speech synthesis knows no exact length)
+pub fn mark_output_busy_for(duration: Duration) {
+    mark_output_busy(Some(duration));
+}
+
 fn mark_output_busy(duration: Option<Duration>) {
     let duration = duration.unwrap_or(config::AUDIO_OUTPUT_UNKNOWN_DURATION) + config::AUDIO_OUTPUT_TAIL;
     let until = Instant::now() + duration;
