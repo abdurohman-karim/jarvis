@@ -1,5 +1,6 @@
 # Phrases the assistant says that no voice pack recorded.
 # Generated into the pack with synth.py, so they play instantly and need no Python at runtime.
+# Results with a number in them are not here: see fragments-ru.py.
 
 # screen
 Скриншот на рабочем столе
@@ -8,7 +9,6 @@
 # system
 Не вижу батарею, похоже это десктоп
 Вайфай не подключен
-Питание от сети
 
 # ai
 Сейчас узнаю

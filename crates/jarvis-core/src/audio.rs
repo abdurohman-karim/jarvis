@@ -111,6 +111,37 @@ pub fn play_sound(filename: &PathBuf) {
     mark_output_busy(duration);
 }
 
+// Play several recordings one after another: a phrase assembled from fragments, see
+// speech::phrase_bank. Returns immediately, like play_sound.
+pub fn play_sequence(files: Vec<PathBuf>) {
+    let Some(audio_type) = AUDIO_TYPE.get() else {
+        warn!("Audio not initialized, cannot play a phrase of {} fragment(s)", files.len());
+        return;
+    };
+
+    // Decoded up front: it reserves the whole window before the first sound is heard, and
+    // reading a file is then not part of the gap between two fragments.
+    let total: Duration = files.iter()
+        .filter_map(|file| match audio_type {
+            AudioType::Rodio => rodio::duration_of(file),
+            AudioType::Kira => kira::duration_of(file),
+        })
+        .sum();
+
+    info!("Playing a phrase of {} fragment(s), {:.1}s", files.len(), total.as_secs_f32());
+    mark_output_busy(Some(total));
+
+    let kira = matches!(audio_type, AudioType::Kira);
+
+    std::thread::Builder::new()
+        .name("phrase-playback".into())
+        .spawn(move || match kira {
+            true => kira::play_sequence(&files),
+            false => rodio::play_sequence(&files),
+        })
+        .ok();
+}
+
 pub fn get_sound_directory() -> Option<PathBuf> {
     let db = DB.get()?;
 

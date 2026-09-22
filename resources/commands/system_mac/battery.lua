@@ -18,9 +18,9 @@ local charging = result.stdout:find("AC Power") ~= nil
 
 local text
 if lang == "ru" then
-    text = "Заряд " .. percent .. " процентов" .. (charging and ", от сети" or "")
+    text = "Заряд " .. percent .. " процентов" .. (charging and ", питание от сети" or "")
 elseif lang == "ua" then
-    text = "Заряд " .. percent .. " відсотків" .. (charging and ", від мережі" or "")
+    text = "Заряд " .. percent .. " відсотків" .. (charging and ", живлення від мережі" or "")
 else
     text = "Battery is at " .. percent .. " percent" .. (charging and ", charging" or "")
 end

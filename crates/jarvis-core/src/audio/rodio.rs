@@ -83,3 +83,21 @@ pub fn play_sound(filename: &PathBuf, sleep: bool) -> Option<Duration> {
 
     duration
 }
+
+// How long the recording is, without playing it.
+pub fn duration_of(filename: &PathBuf) -> Option<Duration> {
+    let file = File::open(filename).ok()?;
+    Decoder::new(BufReader::new(file)).ok()?.total_duration()
+}
+
+// Play the recordings back to back. The sink is a queue, so they follow each other
+// seamlessly; blocking, so the caller runs it on its own thread.
+pub fn play_sequence(files: &[PathBuf]) {
+    for file in files {
+        play_sound(file, false);
+    }
+
+    if let Some(sink) = SINK.get() {
+        sink.sleep_until_end();
+    }
+}

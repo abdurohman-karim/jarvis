@@ -23,7 +23,7 @@ echo "==> virtualenv ($python_bin)"
 
 echo "==> dependencies (a few GB, this takes a while)"
 "$VENV/bin/pip" install --quiet --upgrade pip
-"$VENV/bin/pip" install --quiet torch torchaudio numpy soundfile f5-tts
+"$VENV/bin/pip" install --quiet torch torchaudio numpy soundfile f5-tts vosk
 
 if ! command -v ffmpeg >/dev/null; then
     echo "==> ffmpeg is required by torchcodec; install it with: brew install ffmpeg" >&2

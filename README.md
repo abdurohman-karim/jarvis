@@ -75,27 +75,43 @@ python3 post_build.py --sync
 
 On first launch macOS will ask for microphone access - allow it, otherwise the wake-word never triggers.
 
-#### Speaking in the assistant's own voice (optional)
+#### Speaking in the assistant's own voice
 
-Voice packs are short recordings, so anything else - an answer from the language model, the
-current time - is spoken by the operating system's voice. `scripts/voice-clone/` clones the
-pack's voice from a single reference clip (declared in `voice.toml`) so it can say anything:
+Voice packs are short recordings, so anything they never recorded - the time, the battery
+level, an answer from the language model - has to be synthesized. What ships with a pack
+covers the results the commands actually speak: whole phrases ("Не вижу батарею"), plus
+fragments for the ones that hold a number ("Сейчас 14 часов" + "5 минут"), which the
+assistant plays back to back. Whatever the bank does not cover - a wifi network's name, an
+answer from the language model - is spoken by the operating system, unless cloning is
+installed.
+
+`scripts/voice-clone/` clones a pack's voice from a single reference clip (declared in
+`voice.toml`), both to generate that bank and, optionally, to speak at runtime:
 
 ```bash
 ./scripts/voice-clone/install.sh          # ~4 GB: PyTorch and a speech model, not bundled
 ```
 
-Then pick "Jarvis voice" as the speech engine in the settings. Synthesis takes a few
-seconds per phrase, so phrases that are known in advance are generated once and shipped
-with the pack instead:
+Pick "Jarvis voice" as the speech engine in the settings to use it at runtime; it takes a
+few seconds per phrase, so it only pays off for text nothing could generate in advance.
+
+Regenerating the bank (~20 minutes for the Russian pack):
 
 ```bash
+scripts/voice-clone/fragments-ru.py > scripts/voice-clone/fragments-ru.txt
 scripts/voice-clone/venv/bin/python scripts/voice-clone/synth.py \
   --reference resources/sound/voices/jarvis-remaster/ru/joke2.mp3 \
   --reference-text "..." \
   --phrases scripts/voice-clone/phrases-ru.txt \
-  --out resources/sound/voices/jarvis-remaster/ru/phrases
+  --phrases scripts/voice-clone/fragments-ru.txt \
+  --out resources/sound/voices/jarvis-remaster/ru/phrases \
+  --verify resources/vosk/vosk-model-small-ru-0.22
 ```
+
+Cloning a fragment of one or two words is the part that quietly goes wrong - the model
+rushes it and swallows a word - so `--verify` transcribes every clip back with Vosk and
+generates it again until it comes out as its own text. `check.py` runs the same check over
+a bank that already exists.
 
 #### Release build (.app + .dmg)
 

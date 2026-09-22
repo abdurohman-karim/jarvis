@@ -1,7 +1,9 @@
-// Speaking arbitrary text with the operating system's speech synthesis.
+// Speaking arbitrary text in the assistant's voice, or failing that in the machine's.
 //
-// Voice packs are pre-recorded files and can only say what was recorded; answers from the
-// language model are not known in advance, so they go through the OS instead.
+// Three ways, in order: a phrase the voice pack has pre-generated (instant, its own voice,
+// possibly assembled from fragments - see phrase_bank), cloning the pack's voice on the
+// spot (its own voice, but seconds per phrase and an optional 4 GB component), or the
+// operating system's synthesis (instant, someone else's voice).
 
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -53,9 +55,14 @@ pub fn say(text: &str, language: &str) -> bool {
     stop();
 
     // a phrase generated in the voice pack's own voice beats any synthesis
-    if let Some(recording) = phrase_bank::lookup(text, language) {
-        debug!("Speaking a pre-generated phrase: {}", recording.display());
-        audio::play_sound(&recording);
+    if let Some(recordings) = phrase_bank::lookup(text, language) {
+        if recordings.len() == 1 {
+            debug!("Speaking a pre-generated phrase: {}", recordings[0].display());
+            audio::play_sound(&recordings[0]);
+        } else {
+            debug!("Speaking '{}' as {} pre-generated fragments", text, recordings.len());
+            audio::play_sequence(recordings);
+        }
         return true;
     }
 

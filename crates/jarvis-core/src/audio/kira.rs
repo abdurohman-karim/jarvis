@@ -2,7 +2,7 @@ use once_cell::sync::OnceCell;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 // use kira::{
 //     manager::{backend::DefaultBackend, AudioManager, AudioManagerSettings},
@@ -93,3 +93,28 @@ pub fn play_sound(filename: &PathBuf) -> Option<Duration> {
         }
     }
 }
+
+// How long the recording is, without playing it (it lands in the cache on the way).
+pub fn duration_of(filename: &PathBuf) -> Option<Duration> {
+    load_cached(filename).ok().map(|sound| sound.duration())
+}
+
+// Play the recordings back to back. Blocking, so the caller runs it on its own thread.
+pub fn play_sequence(files: &[PathBuf]) {
+    for file in files {
+        let started = Instant::now();
+
+        let Some(duration) = play_sound(file) else { continue };
+
+        // The fragments are trimmed, so waiting out the full recording would leave an
+        // audible gap between them; the next one starts a hair early instead.
+        let wait = duration
+            .saturating_sub(FRAGMENT_OVERLAP)
+            .saturating_sub(started.elapsed());
+
+        std::thread::sleep(wait);
+    }
+}
+
+// how much of a fragment the next one starts under, to hide the join
+const FRAGMENT_OVERLAP: Duration = Duration::from_millis(30);
