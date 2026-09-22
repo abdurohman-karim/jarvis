@@ -1,17 +1,16 @@
 mod pvrecorder;
 
-// mod cpal;
-// mod portaudio;
-
 use std::time::{Duration, Instant};
 
 use once_cell::sync::OnceCell;
 use parking_lot::Mutex;
 
-use crate::{config, config::structs::RecorderType, DB};
+use crate::DB;
 
-static RECORDER_TYPE: OnceCell<RecorderType> = OnceCell::new();
-static FRAME_LENGTH: OnceCell<u32> = OnceCell::new();
+// pvrecorder requires a frame buffer of 512 samples
+const FRAME_LENGTH: u32 = 512;
+
+static INITIALIZED: OnceCell<()> = OnceCell::new();
 
 // Enumerating audio devices goes through the OS audio stack (CoreAudio / WASAPI) and takes
 // seconds on some machines; startup used to do it 3-4 times. Cache the list for a while.
@@ -19,119 +18,44 @@ static DEVICES_CACHE: Mutex<Option<(Instant, Vec<String>)>> = Mutex::new(None);
 const DEVICES_CACHE_TTL: Duration = Duration::from_secs(30);
 
 pub fn init() -> Result<(), ()> {
-    // set default recorder type
-    // @TODO. Make it configurable?
-    RECORDER_TYPE.set(config::DEFAULT_RECORDER_TYPE).unwrap();
+    if INITIALIZED.get().is_some() {
+        return Ok(());
+    }
 
-    // some info
     info!("Loading recorder ...");
     debug!("Available audio_devices are:\n{:?}", get_audio_devices());
 
-    // load given recorder
-    match RECORDER_TYPE.get().unwrap() {
-        RecorderType::PvRecorder => {
-            // Init Pv Recorder
-            info!("Initializing PvRecorder recording backend.");
-            FRAME_LENGTH.set(512u32).unwrap(); // pvrecorder requires frame buffer of 512
-            let selected_microphone = get_selected_microphone_index();
-            match pvrecorder::init_microphone(
-                selected_microphone,
-                FRAME_LENGTH.get().unwrap().to_owned(),
-            ) {
-                false => {
-                    error!("Recorder initialization failed.");
-
-                    return Err(());
-                }
-                _ => {
-                    info!(
-                        "Recorder initialization success. Listening to microphone ({}): {}",
-                        selected_microphone,
-                        get_audio_device_name(selected_microphone)
-                    );
-                }
-            }
-        }
-        RecorderType::PortAudio => {
-            // Init PortAudio
-            info!("Initializing PortAudio recording backend");
-            todo!();
-            // match portaudio::init_microphone(get_selected_microphone_index(), FRAME_LENGTH.load(Ordering::SeqCst)) {
-            //     false => {
-            //         // Switch to PortAudio recorder
-            //         error!("PortAudio audio backend failed.");
-            //     },
-            //     _ => ()
-            // }
-        }
-        RecorderType::Cpal => {
-            // Init CPAL
-            info!("Initializing CPAL recording backend");
-            todo!();
-            // match cpal::init_microphone(get_selected_microphone_index(), FRAME_LENGTH.load(Ordering::SeqCst)) {
-            //     false => {
-            //         // Switch to CPAL recorder
-            //         error!("CPAL audio backend failed.");
-            //     },
-            //     _ => ()
-            // }
-        }
+    info!("Initializing PvRecorder recording backend.");
+    let selected_microphone = get_selected_microphone_index();
+    if !pvrecorder::init_microphone(selected_microphone, FRAME_LENGTH) {
+        error!("Recorder initialization failed.");
+        return Err(());
     }
 
+    info!(
+        "Recorder initialization success. Listening to microphone ({}): {}",
+        selected_microphone,
+        get_audio_device_name(selected_microphone)
+    );
+
+    let _ = INITIALIZED.set(());
     Ok(())
 }
 
 pub fn read_microphone(frame_buffer: &mut [i16]) {
-    match RECORDER_TYPE.get().unwrap() {
-        RecorderType::PvRecorder => {
-            pvrecorder::read_microphone(frame_buffer);
-        }
-        RecorderType::PortAudio => {
-            todo!();
-            // portaudio::read_microphone(frame_buffer);
-        }
-        RecorderType::Cpal => {
-            // cpal::read_microphone(frame_buffer);
-            panic!("Cpal should be used via callback assignment");
-        }
-    }
+    pvrecorder::read_microphone(frame_buffer);
 }
 
 pub fn start_recording() -> Result<(), ()> {
-    match RECORDER_TYPE.get().unwrap() {
-        RecorderType::PvRecorder => {
-            return pvrecorder::start_recording(
-                get_selected_microphone_index(),
-                FRAME_LENGTH.get().unwrap().to_owned(),
-            );
-        }
-        RecorderType::PortAudio => {
-            todo!();
-            // portaudio::start_recording(get_selected_microphone_index(), FRAME_LENGTH.load(Ordering::SeqCst));
-        }
-        RecorderType::Cpal => {
-            todo!();
-            // cpal::start_recording(get_selected_microphone_index(), FRAME_LENGTH.load(Ordering::SeqCst));
-        }
-    }
+    pvrecorder::start_recording(get_selected_microphone_index(), FRAME_LENGTH)
 }
 
 pub fn stop_recording() -> Result<(), ()> {
-    match RECORDER_TYPE.get().unwrap() {
-        RecorderType::PvRecorder => pvrecorder::stop_recording(),
-        RecorderType::PortAudio => {
-            todo!();
-            // portaudio::stop_recording();
-        }
-        RecorderType::Cpal => {
-            todo!();
-            // cpal::stop_recording();
-        }
-    }
+    pvrecorder::stop_recording()
 }
 
 pub fn get_selected_microphone_index() -> i32 {
-    let idx = DB.get().unwrap().read().microphone;
+    let idx = DB.get().map(|db| db.read().microphone).unwrap_or(-1);
 
     if idx > 0 {
         // validate that this microphone is actually in the list
@@ -161,29 +85,11 @@ pub fn get_audio_devices() -> Vec<String> {
 
 // Re-enumerate audio devices, bypassing the cache (e.g. after plugging in a microphone).
 pub fn refresh_audio_devices() -> Vec<String> {
-    let devices = match RECORDER_TYPE.get() {
-        Some(RecorderType::PvRecorder) | None => pvrecorder::list_audio_devices(),
-        Some(RecorderType::PortAudio) | Some(RecorderType::Cpal) => {
-            todo!();
-        }
-    };
-
+    let devices = pvrecorder::list_audio_devices();
     *DEVICES_CACHE.lock() = Some((Instant::now(), devices.clone()));
     devices
 }
 
 pub fn get_audio_device_name(idx: i32) -> String {
-    match RECORDER_TYPE.get() {
-        Some(RecorderType::PvRecorder) => pvrecorder::get_audio_device_name(idx),
-        Some(RecorderType::PortAudio) => {
-            todo!();
-        }
-        Some(RecorderType::Cpal) => {
-            todo!();
-        }
-        None => {
-            // not initialized yet, default to pvrecorder
-            pvrecorder::get_audio_device_name(idx)
-        }
-    }
+    pvrecorder::get_audio_device_name(idx)
 }

@@ -1,6 +1,5 @@
 pub mod structs;
 use structs::AudioType;
-use structs::RecorderType;
 use structs::SpeechToTextEngine;
 use structs::WakeWordEngine;
 
@@ -63,7 +62,6 @@ pub fn init_dirs() -> Result<(), String> {
    Defaults.
 */
 pub const DEFAULT_AUDIO_TYPE: AudioType = AudioType::Kira;
-pub const DEFAULT_RECORDER_TYPE: RecorderType = RecorderType::PvRecorder;
 pub const DEFAULT_WAKE_WORD_ENGINE: WakeWordEngine = WakeWordEngine::Vosk;
 pub const DEFAULT_SPEECH_TO_TEXT_ENGINE: SpeechToTextEngine = SpeechToTextEngine::Vosk;
 
