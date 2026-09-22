@@ -12,7 +12,7 @@
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, SyncSender, TrySendError};
 use std::time::{Duration, Instant};
 
-use jarvis_core::{audio_buffer::AudioRingBuffer, audio_processing, config, listener, recorder, stt, voices, ipc::{self, IpcEvent}, i18n};
+use jarvis_core::{audio, audio_buffer::AudioRingBuffer, audio_processing, config, listener, recorder, stt, voices, ipc::{self, IpcEvent}, i18n};
 
 use crate::executor::{self, ExecutorHandle};
 use crate::should_stop;
@@ -117,6 +117,26 @@ fn capture_loop(tx: SyncSender<Frame>) {
     debug!("Audio capture thread finished.");
 }
 
+// Input is ignored while the assistant's own voice is audible, otherwise the recognizer
+// turns the reply into a "command" (and an error sound, which is heard again...).
+// Returns true if the frame was swallowed; recognizer state is reset so the tail of our
+// own voice cannot merge with what the user says next.
+fn drop_while_speaking(vad_state: &mut VadState, silence_frames: &mut u32, audio_buffer: &mut AudioRingBuffer) -> bool {
+    if !audio::output_busy() {
+        return false;
+    }
+
+    if *vad_state != VadState::WaitingForVoice {
+        *vad_state = VadState::WaitingForVoice;
+        stt::reset_wake_recognizer();
+        stt::reset_speech_recognizer();
+    }
+    *silence_frames = 0;
+    audio_buffer.clear();
+    audio_processing::reset();
+    true
+}
+
 // Next frame from the capture thread. None when stopping.
 fn next_frame(frames: &Receiver<Frame>) -> Option<Frame> {
     loop {
@@ -173,6 +193,10 @@ fn processing_loop(frames: Receiver<Frame>, executor: ExecutorHandle) -> Result<
         let Some(frame) = next_frame(&frames) else {
             break;
         };
+
+        if drop_while_speaking(&mut vad_state, &mut silence_frames, &mut audio_buffer) {
+            continue;
+        }
 
         if is_muted() {
             if vad_state == VadState::VoiceActive {
@@ -290,6 +314,14 @@ fn listen_for_command(frames: &Receiver<Frame>, executor: &ExecutorHandle, prefe
         let Some(frame) = next_frame(frames) else {
             return CommandOutcome::Stop;
         };
+
+        // our own reply ("yes, sir") must not be mistaken for the command, and the time
+        // spent speaking must not count towards the command timeout
+        if drop_while_speaking(&mut vad_state, &mut silence_frames, &mut audio_buffer) {
+            start = Instant::now();
+            continue;
+        }
+
         if is_muted() {
             info!("Muted while listening for a command, returning to wake word mode.");
             return CommandOutcome::Abandoned;

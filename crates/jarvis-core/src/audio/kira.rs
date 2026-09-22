@@ -2,6 +2,7 @@ use once_cell::sync::OnceCell;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
+use std::time::Duration;
 
 // use kira::{
 //     manager::{backend::DefaultBackend, AudioManager, AudioManagerSettings},
@@ -59,24 +60,36 @@ fn load_cached(filename: &PathBuf) -> Result<StaticSoundData, kira::sound::FromF
     Ok(sound)
 }
 
-pub fn play_sound(filename: &PathBuf) {
+// Plays the file and returns its duration, so the caller can tell how long the
+// assistant's own voice will be audible.
+pub fn play_sound(filename: &PathBuf) -> Option<Duration> {
     match load_cached(filename) {
         Ok(sound_data) => {
-            // sound_data.duration() can be used in order to sleep, if (for some reason) blocking behaviour is required
+            let duration = sound_data.duration();
 
             // play it (non-blocking)
-            if let Some(manager) = MANAGER.get() {
-                if let Ok(mut audio_manager) = manager.lock() {
-                    if let Err(e) = audio_manager.play(sound_data) {
-                        warn!("Failed to play sound: {}", e);
-                    }
-                }
-            } else {
+            let Some(manager) = MANAGER.get() else {
                 warn!("Audio manager not initialized");
+                return None;
+            };
+
+            match manager.lock() {
+                Ok(mut audio_manager) => match audio_manager.play(sound_data) {
+                    Ok(_) => Some(duration),
+                    Err(e) => {
+                        warn!("Failed to play sound: {}", e);
+                        None
+                    }
+                },
+                Err(e) => {
+                    warn!("Audio manager lock poisoned: {}", e);
+                    None
+                }
             }
         }
         Err(err) => {
             warn!("Cannot find sound file: {} (err: {})", filename.display(), err);
+            None
         }
     }
 }

@@ -9,9 +9,10 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 // use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
-use rodio::{Decoder, Sink};
+use rodio::{Decoder, Sink, Source};
 
 // NOTE: OutputStream is not Send/Sync on macOS (cpal CoreAudio), so it cannot live
 // in a static. Instead it is leaked with mem::forget to keep the device open for the
@@ -48,21 +49,37 @@ pub fn init() -> Result<(), ()> {
     }
 }
 
-pub fn play_sound(filename: &PathBuf, sleep: bool) {
-    // Load a sound from a file, using a path relative to Cargo.toml
-    // let filepath = format!("{PUBLIC_PATH}/sound/{filename}.wav");
-    let file = BufReader::new(File::open(&filename).unwrap());
+pub fn play_sound(filename: &PathBuf, sleep: bool) -> Option<Duration> {
+    let file = match File::open(filename) {
+        Ok(f) => BufReader::new(f),
+        Err(e) => {
+            warn!("Cannot open sound file {}: {}", filename.display(), e);
+            return None;
+        }
+    };
 
-    // Decode that sound file into a source
-    let source = Decoder::new(file).unwrap();
+    let source = match Decoder::new(file) {
+        Ok(s) => s,
+        Err(e) => {
+            warn!("Cannot decode sound file {}: {}", filename.display(), e);
+            return None;
+        }
+    };
 
-    // Play the sound directly on the device
-    // STREAM_HANDLE.get().unwrap().play_raw(source.convert_samples());
-    SINK.get().unwrap().append(source);
+    let duration = source.total_duration();
+
+    let Some(sink) = SINK.get() else {
+        warn!("Audio sink not initialized");
+        return None;
+    };
+
+    sink.append(source);
 
     if sleep {
         // The sound plays in a separate thread. This call will block the current thread until the sink
         // has finished playing all its queued sounds.
-        SINK.get().unwrap().sleep_until_end();
+        sink.sleep_until_end();
     }
+
+    duration
 }

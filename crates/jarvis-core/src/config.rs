@@ -62,6 +62,12 @@ pub fn init_dirs() -> Result<(), String> {
    Defaults.
 */
 pub const DEFAULT_AUDIO_TYPE: AudioType = AudioType::Kira;
+
+// while the assistant speaks its own voice reaches the microphone; input is dropped for the
+// duration of the sound plus this tail (room reverb, speaker latency)
+pub const AUDIO_OUTPUT_TAIL: std::time::Duration = std::time::Duration::from_millis(350);
+// assumed length when the backend cannot report one
+pub const AUDIO_OUTPUT_UNKNOWN_DURATION: std::time::Duration = std::time::Duration::from_millis(1500);
 // @TODO. Switch to Rustpotter once its detection quality is verified on real voices
 // (it was broken until the frame re-chunking fix in listener/rustpotter.rs, so nobody could).
 pub const DEFAULT_WAKE_WORD_ENGINE: WakeWordEngine = WakeWordEngine::Vosk;
