@@ -2,6 +2,27 @@ use once_cell::sync::OnceCell;
 use pv_recorder::{PvRecorder, PvRecorderBuilder};
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use crate::NATIVE_LIB_DIR;
+
+#[cfg(target_os = "macos")]
+const PV_LIBRARY_NAME: &str = "libpv_recorder.dylib";
+#[cfg(target_os = "windows")]
+const PV_LIBRARY_NAME: &str = "libpv_recorder.dll";
+#[cfg(not(any(target_os = "macos", target_os = "windows")))]
+const PV_LIBRARY_NAME: &str = "libpv_recorder.so";
+
+// The pv_recorder crate defaults to a library path baked in at compile time (OUT_DIR),
+// which does not exist on end-user machines. Packaged builds ship the library in
+// NATIVE_LIB_DIR, so use that when present.
+fn builder(frame_length: i32) -> PvRecorderBuilder {
+    let mut builder = PvRecorderBuilder::new(frame_length);
+    let bundled = NATIVE_LIB_DIR.join(PV_LIBRARY_NAME);
+    if bundled.is_file() {
+        builder = builder.library_path(&bundled);
+    }
+    builder
+}
+
 static RECORDER: OnceCell<PvRecorder> = OnceCell::new();
 static IS_RECORDING: AtomicBool = AtomicBool::new(false);
 
@@ -11,7 +32,7 @@ pub fn init_microphone(device_index: i32, frame_length: u32) -> bool {
     }
     
     // initialize
-    let pv_recorder = PvRecorderBuilder::new(frame_length as i32)
+    let pv_recorder = builder(frame_length as i32)
         .device_index(device_index)
         // .frame_length(frame_length as i32)
         .init();
@@ -103,7 +124,7 @@ pub fn stop_recording() -> Result<(), ()> {
 }
 
 pub fn list_audio_devices() -> Vec<String> {
-    let audio_devices = PvRecorderBuilder::default().get_available_devices();
+    let audio_devices = builder(512).get_available_devices();
     match audio_devices {
         Ok(audio_devices) => audio_devices,
         Err(err) => {

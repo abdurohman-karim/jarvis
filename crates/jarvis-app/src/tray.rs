@@ -260,9 +260,12 @@ fn launch_gui() {
         }
     };
     
-    let gui_path = exe_path.parent()
-        .map(|p| p.join(get_gui_executable_name()))
-        .unwrap_or_else(|| get_gui_executable_name().into());
+    let exe_dir = exe_path.parent().map(|p| p.to_path_buf()).unwrap_or_default();
+    let gui_path = GUI_EXECUTABLE_NAMES
+        .iter()
+        .map(|name| exe_dir.join(name))
+        .find(|p| p.is_file())
+        .unwrap_or_else(|| exe_dir.join(GUI_EXECUTABLE_NAMES[0]));
     
     info!("Launching GUI: {:?}", gui_path);
     
@@ -273,11 +276,8 @@ fn launch_gui() {
 }
 
 #[cfg(target_os = "windows")]
-fn get_gui_executable_name() -> &'static str {
-    "jarvis-gui.exe"
-}
+const GUI_EXECUTABLE_NAMES: &[&str] = &["jarvis-gui.exe", "Jarvis.exe"];
 
+// packaged builds name the GUI binary after the Tauri productName
 #[cfg(not(target_os = "windows"))]
-fn get_gui_executable_name() -> &'static str {
-    "jarvis-gui"
-}
+const GUI_EXECUTABLE_NAMES: &[&str] = &["jarvis-gui", "Jarvis"];

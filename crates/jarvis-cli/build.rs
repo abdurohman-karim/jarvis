@@ -8,6 +8,8 @@ fn main() {
         "macos" => {
             println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path");
             println!("cargo:rustc-link-arg=-Wl,-rpath,@loader_path");
+            // inside a .app bundle: <App>.app/Contents/Resources/lib
+            println!("cargo:rustc-link-arg=-Wl,-rpath,@executable_path/../Resources/lib");
         }
         "linux" => {
             println!("cargo:rustc-link-arg=-Wl,-rpath,$ORIGIN");

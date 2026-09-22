@@ -73,6 +73,16 @@ python3 post_build.py --sync
 
 On first launch macOS will ask for microphone access - allow it, otherwise the wake-word never triggers.
 
+#### Release build (.app + .dmg)
+
+```bash
+./scripts/build-mac.sh
+```
+
+The script builds `jarvis-app` in release mode, packages it as a Tauri sidecar and runs `tauri build`.
+Output: `target/release/bundle/macos/Jarvis.app` and `target/release/bundle/dmg/Jarvis_<version>_aarch64.dmg`.
+The bundle is ad-hoc signed (no Apple Developer ID), so on another Mac open it the first time via right click → Open.
+
 ## License
 
 [Attribution-NonCommercial-ShareAlike 4.0 International](https://creativecommons.org/licenses/by-nc-sa/4.0/)<br>
