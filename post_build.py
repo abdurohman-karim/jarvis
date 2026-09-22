@@ -20,16 +20,26 @@ SOURCE = (
     ("resources/sound/", "resources/sound/"),
     ("resources/models/", "resources/models/"),
 
-    # vosk
-    ("lib/windows/amd64/libgcc_s_seh-1.dll", None),
-    ("lib/windows/amd64/libstdc++-6.dll", None),
-    ("lib/windows/amd64/libvosk.dll", None),
-    ("lib/windows/amd64/libvosk.lib", None),
-    ("lib/windows/amd64/libwinpthread-1.dll", None),
-
-    # pvrecorder
-    ("lib/windows/amd64/libpv_recorder.dll", None),
 )
+
+# platform specific native libraries (copied next to the executables)
+if sys.platform == "win32":
+    SOURCE += (
+        # vosk
+        ("lib/windows/amd64/libgcc_s_seh-1.dll", None),
+        ("lib/windows/amd64/libstdc++-6.dll", None),
+        ("lib/windows/amd64/libvosk.dll", None),
+        ("lib/windows/amd64/libvosk.lib", None),
+        ("lib/windows/amd64/libwinpthread-1.dll", None),
+
+        # pvrecorder
+        ("lib/windows/amd64/libpv_recorder.dll", None),
+    )
+elif sys.platform == "darwin":
+    SOURCE += (
+        # vosk (universal arm64 + x86_64 dylib, looked up via @rpath)
+        ("lib/macos/libvosk.dylib", None),
+    )
 
 TARGET_DIRS = (
     "target/debug",

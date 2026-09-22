@@ -8,16 +8,19 @@ use once_cell::sync::OnceCell;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 // use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
 use rodio::{Decoder, OutputStream, Sink};
 
-// static STREAM: OnceCell<OutputStream> = OnceCell::new();
-static STREAM_HANDLE: OnceCell<OutputStream> = OnceCell::new();
+// NOTE: OutputStream is not Send/Sync on macOS (cpal CoreAudio), so it cannot live
+// in a static. Instead it is leaked with mem::forget to keep the device open for the
+// whole process lifetime; only the (Send + Sync) sink is stored.
+static INITIALIZED: AtomicBool = AtomicBool::new(false);
 static SINK: OnceCell<Sink> = OnceCell::new();
 
 pub fn init() -> Result<(), ()> {
-    if STREAM_HANDLE.get().is_some() {
+    if INITIALIZED.load(Ordering::SeqCst) {
         return Ok(());
     } // already initialized
 
@@ -28,10 +31,10 @@ pub fn init() -> Result<(), ()> {
             let sink = Sink::connect_new(&stream_handle.mixer());
             info!("Sink initialized.");
 
-            // store
-            // STREAM.set(_stream).unwrap();
-            let _ = STREAM_HANDLE.set(stream_handle);
+            // store the sink, keep the stream alive for the whole process
             let _ = SINK.set(sink);
+            std::mem::forget(stream_handle);
+            INITIALIZED.store(true, Ordering::SeqCst);
 
             // success
             Ok(())

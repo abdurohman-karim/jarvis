@@ -51,6 +51,28 @@ Or run dev with `cargo tauri dev`.
 <br><br>
 *Thought you might need some of the platform specific libraries for [PvRecorder](https://github.com/Picovoice/pvrecorder) and [Vosk](https://github.com/alphacep/vosk-api).*
 
+### macOS
+
+Requirements: Xcode Command Line Tools (`xcode-select --install`), [Rust](https://rustup.rs) and Node.js.
+`libvosk.dylib` (universal arm64 + x86_64) is already shipped in `lib/macos`, PvRecorder brings its own dylib.
+
+```bash
+# 1. frontend dependencies
+cd frontend && npm install && cd ..
+
+# 2. build the background assistant and copy resources + libvosk.dylib next to the binary
+cargo build -p jarvis-app
+python3 post_build.py --sync
+
+# 3a. run the assistant only (menu-bar icon, no window)
+./target/debug/jarvis-app
+
+# 3b. or run the GUI (it starts jarvis-app itself); run from the repository root
+./frontend/node_modules/.bin/tauri dev
+```
+
+On first launch macOS will ask for microphone access - allow it, otherwise the wake-word never triggers.
+
 ## Author
 
 Abraham Tugalov

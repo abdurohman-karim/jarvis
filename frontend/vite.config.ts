@@ -25,6 +25,11 @@ export default defineConfig({
   ],
 
   clearScreen: false,
+  // inline (empty) PostCSS config: stops Vite from walking up the tree and
+  // picking up a postcss.config.* from outside the project (e.g. $HOME)
+  css: {
+    postcss: {},
+  },
   server: {
     port: 1420,
     strictPort: true,

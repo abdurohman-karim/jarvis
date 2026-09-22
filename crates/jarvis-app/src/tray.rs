@@ -14,6 +14,7 @@ use jarvis_core::{config, i18n, voices, ipc::{self, IpcEvent}, SettingsManager};
 
 const TRAY_ICON_BYTES: &[u8] = include_bytes!("../../../resources/icons/32x32.png");
 
+#[cfg(not(target_os = "macos"))]
 pub fn init_blocking(settings: SettingsManager) {
     let icon = load_icon_from_bytes(TRAY_ICON_BYTES);
 
@@ -42,18 +43,6 @@ pub fn init_blocking(settings: SettingsManager) {
         gtk::main();
     }
 
-    #[cfg(target_os = "macos")]
-    {
-        use winit::event_loop::{EventLoop, ControlFlow};
-        let event_loop = EventLoop::new().unwrap();
-        event_loop.run(move |_event, elwt| {
-            elwt.set_control_flow(ControlFlow::Wait);
-            if let Ok(event) = menu_channel.try_recv() {
-                handle_menu_event(&event, &settings, &tray_state);
-            }
-        }).unwrap();
-    }
-
     #[cfg(target_os = "windows")]
     {
         loop {
@@ -79,6 +68,74 @@ pub fn init_blocking(settings: SettingsManager) {
     }
 
     info!("Tray initialized.");
+}
+
+// On macOS the status-bar item must be created on the main thread *after* the
+// NSApplication event loop exists, so the tray is built from inside the winit
+// event loop (StartCause::Init) instead of before it.
+#[cfg(target_os = "macos")]
+pub fn init_blocking(settings: SettingsManager) {
+    use tray_icon::TrayIcon;
+    use winit::application::ApplicationHandler;
+    use winit::event::{StartCause, WindowEvent};
+    use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
+    use winit::platform::macos::{ActivationPolicy, EventLoopBuilderExtMacOS};
+    use winit::window::WindowId;
+
+    struct TrayApp {
+        settings: SettingsManager,
+        tray_icon: Option<TrayIcon>,
+        tray_state: Option<menu::TrayState>,
+    }
+
+    impl ApplicationHandler<MenuEvent> for TrayApp {
+        fn new_events(&mut self, _event_loop: &ActiveEventLoop, cause: StartCause) {
+            if cause != StartCause::Init || self.tray_icon.is_some() {
+                return;
+            }
+
+            let icon = load_icon_from_bytes(TRAY_ICON_BYTES);
+            let menu::TrayMenu { menu, state } = menu::build(&self.settings);
+
+            let tray_icon = TrayIconBuilder::new()
+                .with_menu(Box::new(menu))
+                .with_tooltip(i18n::t("tray-tooltip"))
+                .with_icon(icon)
+                .build()
+                .expect("Failed to create tray icon");
+
+            self.tray_icon = Some(tray_icon);
+            self.tray_state = Some(state);
+            info!("Tray initialized.");
+        }
+
+        fn resumed(&mut self, _event_loop: &ActiveEventLoop) {}
+
+        fn window_event(&mut self, _event_loop: &ActiveEventLoop, _id: WindowId, _event: WindowEvent) {}
+
+        fn user_event(&mut self, _event_loop: &ActiveEventLoop, event: MenuEvent) {
+            if let Some(state) = &self.tray_state {
+                handle_menu_event(&event, &self.settings, state);
+            }
+        }
+    }
+
+    let event_loop = EventLoop::<MenuEvent>::with_user_event()
+        // menu-bar only app: no Dock icon, no main menu
+        .with_activation_policy(ActivationPolicy::Accessory)
+        .with_default_menu(false)
+        .build()
+        .expect("Failed to create event loop");
+    event_loop.set_control_flow(ControlFlow::Wait);
+
+    // forward menu clicks into the winit loop so it wakes up on them
+    let proxy = event_loop.create_proxy();
+    MenuEvent::set_event_handler(Some(move |event: MenuEvent| {
+        let _ = proxy.send_event(event);
+    }));
+
+    let mut app = TrayApp { settings, tray_icon: None, tray_state: None };
+    event_loop.run_app(&mut app).expect("Tray event loop failed");
 }
 
 fn handle_menu_event(event: &MenuEvent, settings: &SettingsManager, tray_state: &menu::TrayState) {

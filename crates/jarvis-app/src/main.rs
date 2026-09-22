@@ -20,8 +20,6 @@ mod log;
 mod app;
 
 // include tray
-// @TODO. macOS currently not supported for tray functionality.
-#[cfg(not(target_os = "macos"))]
 mod tray;
 
 static SHOULD_STOP: AtomicBool = AtomicBool::new(false);
