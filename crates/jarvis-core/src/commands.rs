@@ -134,25 +134,21 @@ pub fn fetch_command<'a>(
 
     for cmd_list in commands {
         for cmd in &cmd_list.commands {
-            let cmd_phrases = cmd.get_phrases(&lang);
-            
+            let cmd_phrases = cmd.get_normalized_phrases(&lang);
+
             for cmd_phrase in cmd_phrases.iter() {
-                let cmd_phrase_lower = cmd_phrase.trim().to_lowercase();
-                let cmd_phrase_chars: Vec<char> = cmd_phrase_lower.chars().collect();
-                
                 // character-level similarity
-                let char_ratio = ratio(&phrase_chars, &cmd_phrase_chars);
-                
+                let char_ratio = ratio(&phrase_chars, &cmd_phrase.chars);
+
                 // word-level similarity
-                let cmd_words: Vec<&str> = cmd_phrase_lower.split_whitespace().collect();
-                let word_score = word_overlap_score(&phrase_words, &cmd_words);
-                
+                let word_score = word_overlap_score(&phrase_words, &cmd_phrase.word_chars);
+
                 // combined score
                 let score = (char_ratio * 0.6) + (word_score * 0.4);
                 
                 // early exit on perfect match
                 if score >= 99.0 {
-                    debug!("Perfect match: '{}' -> '{}'", phrase, cmd_phrase_lower);
+                    debug!("Perfect match: '{}' -> '{}'", phrase, cmd_phrase.text);
                     return Some((&cmd_list.path, cmd));
                 }
                 
@@ -174,19 +170,13 @@ pub fn fetch_command<'a>(
 }
 
 
-fn word_overlap_score(input_words: &[&str], cmd_words: &[&str]) -> f64 {
-    if input_words.is_empty() || cmd_words.is_empty() {
+fn word_overlap_score(input_words: &[&str], cmd_word_chars: &[Vec<char>]) -> f64 {
+    if input_words.is_empty() || cmd_word_chars.is_empty() {
         return 0.0;
     }
 
     let mut matched = 0.0;
-    
-    // pre-compute cmd word chars to avoid repeated allocations
-    let cmd_word_chars: Vec<Vec<char>> = cmd_words
-        .iter()
-        .map(|w| w.chars().collect())
-        .collect();
-    
+
     for input_word in input_words {
         let input_chars: Vec<char> = input_word.chars().collect();
         
@@ -200,7 +190,7 @@ fn word_overlap_score(input_words: &[&str], cmd_words: &[&str]) -> f64 {
         }
     }
 
-    let max_words = input_words.len().max(cmd_words.len()) as f64;
+    let max_words = input_words.len().max(cmd_word_chars.len()) as f64;
     (matched / max_words) * 100.0
 }
 

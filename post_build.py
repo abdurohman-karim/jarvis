@@ -9,6 +9,24 @@ import shutil
 import sys
 import filecmp
 
+
+def link_or_copy_dir(src_dir, dst_dir):
+    """symlink a resource directory (fast, always current); copy if links are unavailable"""
+    if os.path.islink(dst_dir):
+        if os.path.realpath(dst_dir) == os.path.realpath(src_dir):
+            return "up to date"
+        os.unlink(dst_dir)
+    elif os.path.isdir(dst_dir):
+        shutil.rmtree(dst_dir)
+
+    try:
+        os.symlink(os.path.realpath(src_dir), dst_dir, target_is_directory=True)
+        return "linked"
+    except OSError:
+        # Windows without developer mode, or a filesystem without symlinks
+        shutil.copytree(src_dir, dst_dir)
+        return "copied"
+
 # some config vars
 # format: (source, destination_name)
 SOURCE = (
@@ -150,16 +168,11 @@ for tdir in TARGET_DIRS:
             full_target_dir_path = os.path.join(tdir, target_name)
 
             if sync_mode:
-                # sync: update changed, add new, remove orphans
-                if os.path.isdir(full_target_dir_path):
-                    c, u, r = sync_directory(src_path, full_target_dir_path)
-                    if c or u or r:
-                        print(f"[~] Synced: {src} -> {target_name} (+{c} new, ~{u} updated, -{r} removed)")
-                    else:
-                        print(f"[=] Up to date: {src} -> {target_name}")
-                else:
-                    shutil.copytree(src_path, full_target_dir_path)
-                    print("[+] Directory copied: ", src, "->", target_name)
+                # dev builds: link instead of copying (resources/vosk alone is hundreds of MB,
+                # and a linked directory can never go stale)
+                link_target = full_target_dir_path.rstrip("/\\")
+                os.makedirs(os.path.dirname(link_target), exist_ok=True)
+                print(f"[~] {link_or_copy_dir(src_path, link_target)}: {src} -> {target_name}")
 
             elif os.path.isdir(full_target_dir_path):
                 if force_overwrite:

@@ -217,9 +217,11 @@ fn processing_loop(frames: Receiver<Frame>, executor: ExecutorHandle) -> Result<
                     info!("VAD: Voice started ({}), flushing {} buffered frames",
                         audio_processing::vad::describe(&processed.samples), audio_buffer.len());
 
-                    for buffered_frame in audio_buffer.drain_all() {
-                        listener::data_callback(&buffered_frame);
+                    let buffered = audio_buffer.drain_all();
+                    for buffered_frame in &buffered {
+                        listener::data_callback(buffered_frame);
                     }
+                    audio_buffer.recycle(buffered);
                     // the current frame was never buffered
                     listener::data_callback(&processed.samples);
 
@@ -335,9 +337,11 @@ fn listen_for_command(frames: &Receiver<Frame>, executor: &ExecutorHandle, prefe
 
                 if processed.is_voice {
                     // flush buffer to STT
-                    for buffered_frame in audio_buffer.drain_all() {
-                        stt::recognize(&buffered_frame, false);
+                    let buffered = audio_buffer.drain_all();
+                    for buffered_frame in &buffered {
+                        stt::recognize(buffered_frame, false);
                     }
+                    audio_buffer.recycle(buffered);
                     vad_state = VadState::VoiceActive;
                     silence_frames = 0;
                 } else {

@@ -75,9 +75,29 @@ pub struct JCommand {
     
     #[serde(skip, default)]
     phrases_cache: RwLock<HashMap<String, Arc<Vec<String>>>>,
+
+    #[serde(skip, default)]
+    normalized_cache: RwLock<HashMap<String, Arc<Vec<NormalizedPhrase>>>>,
 }
 
 // custom Clone 
+// A command phrase decomposed once for repeated fuzzy comparisons
+#[derive(Debug)]
+pub struct NormalizedPhrase {
+    pub text: String,
+    pub chars: Vec<char>,
+    pub word_chars: Vec<Vec<char>>,
+}
+
+impl NormalizedPhrase {
+    fn new(phrase: &str) -> Self {
+        let text = phrase.trim().to_lowercase();
+        let chars: Vec<char> = text.chars().collect();
+        let word_chars: Vec<Vec<char>> = text.split_whitespace().map(|w| w.chars().collect()).collect();
+        Self { text, chars, word_chars }
+    }
+}
+
 impl Clone for JCommand {
     fn clone(&self) -> Self {
         Self {
@@ -105,6 +125,7 @@ impl Clone for JCommand {
             // empty caches for cloned instance
             sounds_cache: RwLock::new(HashMap::new()),
             phrases_cache: RwLock::new(HashMap::new()),
+            normalized_cache: RwLock::new(HashMap::new()),
         }
     }
 }
@@ -125,6 +146,26 @@ impl JCommand {
     // get all phrases (for backwards compat)
     pub fn get_all_phrases(&self) -> Vec<String> {
         self.phrases.values().flatten().cloned().collect()
+    }
+
+    // Phrases prepared for fuzzy matching. The levenshtein fallback compares the spoken
+    // text against every phrase of every command, and used to lowercase and decompose each
+    // of them on every call; this is done once per language instead.
+    pub fn get_normalized_phrases(&self, lang: &str) -> Arc<Vec<NormalizedPhrase>> {
+        if let Some(cached) = self.normalized_cache.read().get(lang) {
+            return Arc::clone(cached);
+        }
+
+        let normalized: Vec<NormalizedPhrase> = self
+            .get_phrases(lang)
+            .iter()
+            .map(|phrase| NormalizedPhrase::new(phrase))
+            .collect();
+
+        let result = Arc::new(normalized);
+        self.normalized_cache.write().insert(lang.to_string(), Arc::clone(&result));
+
+        result
     }
 
     // get sounds for current language
