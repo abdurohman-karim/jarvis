@@ -35,8 +35,13 @@ jobs:
         run: npm run build
         working-directory: frontend
 
-      - name: Rust tests
-        run: cargo test -p jarvis-core --lib
+      - name: Build core tests
+        run: cargo test -p jarvis-core --lib --no-run
+
+      - name: Run core tests
+        run: cargo test -p jarvis-core --lib -- --nocapture
+        env:
+          RUST_BACKTRACE: 1
 
       - name: Build assistant + cli
         run: cargo build -p jarvis-app -p jarvis-cli
