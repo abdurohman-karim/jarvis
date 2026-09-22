@@ -50,6 +50,7 @@ ndarray = "0.17"
 tokenizers = { version = "0.22", default-features = false }
 regex = "1"
 sys-locale = "0.3"
+ts-rs = "11"
 
 
 [profile.release]

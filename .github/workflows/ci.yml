@@ -56,6 +56,10 @@ jobs:
       - name: GUI tests
         run: cargo test -p jarvis-gui --no-default-features
 
+      # the IPC types the frontend imports are generated from the Rust definitions
+      - name: Generated IPC types are up to date
+        run: git diff --exit-code -- frontend/src/lib/ipc-types.ts
+
       - name: Warnings are errors
         run: cargo build -p jarvis-app -p jarvis-cli
         env:

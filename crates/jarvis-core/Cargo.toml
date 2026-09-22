@@ -29,6 +29,7 @@ fluent-bundle.workspace = true
 unic-langid.workspace = true
 chrono.workspace = true
 sys-locale.workspace = true
+ts-rs.workspace = true
 
 # pv_recorder = { workspace = true, optional = true }
 vosk = { version = "0.3.1", optional = true }

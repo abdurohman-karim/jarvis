@@ -5,8 +5,7 @@ license.workspace = true
 edition.workspace = true
 
 [dependencies]
-jarvis-core = { path = "../jarvis-core", default-features = false, features = ["intent"]}
-tokio = { version = "1", features = ["rt-multi-thread", "sync", "macros"] }
-log.workspace = true
-env_logger = "0.11"
-parking_lot.workspace = true
+# a thin IPC client: no speech models, no intent classifier, no async runtime
+jarvis-core = { path = "../jarvis-core", default-features = false }
+tungstenite = "0.28"
+serde_json.workspace = true

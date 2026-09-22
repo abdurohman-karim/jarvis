@@ -9,7 +9,7 @@ use tokio::sync::broadcast;
 use tokio_tungstenite::{accept_hdr_async, tungstenite::Message};
 use tokio_tungstenite::tungstenite::handshake::server::{Request, Response, ErrorResponse};
 
-use super::events::{IpcAction, IpcEvent};
+use super::events::{IpcAction, IpcEvent, PROTOCOL_VERSION};
 use crate::APP_CONFIG_DIR;
 
 pub const IPC_PORT: u16 = 9712;
@@ -173,7 +173,7 @@ pub async fn start_server_on(std_listener: std::net::TcpListener) {
     };
 
     // notify that we're ready
-    send(IpcEvent::Started);
+    send(IpcEvent::Started { protocol: PROTOCOL_VERSION });
 
     while let Ok((stream, peer_addr)) = listener.accept().await {
         info!("IPC: Client connecting from {}", peer_addr);
@@ -248,7 +248,8 @@ async fn handle_client(
                                     debug!("IPC: Client {} authenticated", peer_addr);
                                     // let the client know it may start sending actions
                                     let _ = ws_tx.send(Message::Text(
-                                        serde_json::to_string(&IpcEvent::Started).unwrap_or_default().into()
+                                        serde_json::to_string(&IpcEvent::Started { protocol: PROTOCOL_VERSION })
+                                            .unwrap_or_default().into()
                                     )).await;
                                 } else {
                                     warn!("IPC: Client {} sent an invalid token, closing", peer_addr);

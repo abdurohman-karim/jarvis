@@ -2,6 +2,12 @@ import { writable, get } from "svelte/store"
 import { invoke } from "@tauri-apps/api/core"
 import { getCurrentWindow } from "@tauri-apps/api/window"
 
+// generated from the Rust definitions by `cargo test -p jarvis-core` - do not hand-edit
+import type { IpcEvent, IpcAction } from "./ipc-types"
+
+// bump together with PROTOCOL_VERSION in crates/jarvis-core/src/ipc/events.rs
+const PROTOCOL_VERSION = 1
+
 // ### IPC STORES ###
 
 export type JarvisState = "disconnected" | "idle" | "listening" | "processing"
@@ -16,6 +22,8 @@ export const isMuted = writable(false)
 export const commandsVersion = writable(0)
 // what the assistant re-applied after the last settings save
 export const lastAppliedSettings = writable<string[] | null>(null)
+// set to the assistant's protocol version when it differs from this UI's
+export const protocolMismatch = writable<number | null>(null)
 
 // ### CONNECTION ###
 
@@ -54,7 +62,7 @@ export async function connectIpc(port: number = 9712) {
 
     ws.onopen = () => {
         // the server answers a valid token with `started`; that marks us connected
-        ws?.send(JSON.stringify({ action: "auth", token }))
+        send({ action: "auth", token })
     }
 
     ws.onclose = () => {
@@ -107,7 +115,7 @@ export function disconnectIpc() {
 
 // ### EVENT HANDLING ###
 
-function handleEvent(data: any) {
+function handleEvent(data: IpcEvent) {
     console.log("IPC: Event", data.event, data)
 
     switch (data.event) {
@@ -117,12 +125,12 @@ function handleEvent(data: any) {
             break
 
         case "speech_recognized":
-            lastRecognizedText.set(data.text || "")
+            lastRecognizedText.set(data.text)
             jarvisState.set("processing")
             break
 
         case "command_executed":
-            lastExecutedCommand.set(data.id || "")
+            lastExecutedCommand.set(data.id)
             break
 
         case "idle":
@@ -130,10 +138,14 @@ function handleEvent(data: any) {
             break
 
         case "error":
-            lastError.set(data.message || "Unknown error")
+            lastError.set(data.message)
             break
 
         case "started":
+            if (data.protocol !== PROTOCOL_VERSION) {
+                console.warn(`[IPC] protocol mismatch: assistant speaks v${data.protocol}, this UI v${PROTOCOL_VERSION}`)
+                protocolMismatch.set(data.protocol)
+            }
             if (!get(ipcConnected)) {
                 console.log("[IPC] connected")
                 ipcConnected.set(true)
@@ -156,7 +168,7 @@ function handleEvent(data: any) {
             break
 
         case "muted":
-            isMuted.set(!!data.muted)
+            isMuted.set(data.muted)
             break
 
         case "commands_reloaded":
@@ -164,37 +176,38 @@ function handleEvent(data: any) {
             break
 
         case "settings_applied":
-            lastAppliedSettings.set(data.changed ?? [])
+            lastAppliedSettings.set(data.changed)
             break
     }
 }
 
 // ### ACTIONS ###
 
-export function sendAction(action: string, payload: Record<string, any> = {}) {
+// only actions the assistant actually understands can be sent
+function send(action: IpcAction): boolean {
     if (ws?.readyState !== WebSocket.OPEN) {
         return false
     }
 
-    ws.send(JSON.stringify({ action, ...payload }))
+    ws.send(JSON.stringify(action))
     return true
 }
 
 export function stopJarvisApp() {
-    return sendAction("stop")
+    return send({ action: "stop" })
 }
 
 export function reloadCommands() {
-    return sendAction("reload_commands")
+    return send({ action: "reload_commands" })
 }
 
 export function setMuted(muted: boolean) {
-    return sendAction("set_muted", { muted })
+    return send({ action: "set_muted", muted })
 }
 
 // ask the running assistant to re-read the settings file and apply what changed
 export function applySettings() {
-    return sendAction("apply_settings")
+    return send({ action: "apply_settings" })
 }
 
 export function sendIpcMessage(message: object): Promise<void> {
@@ -214,7 +227,7 @@ export function sendIpcMessage(message: object): Promise<void> {
 }
 
 export function sendTextCommand(text: string): boolean {
-    return sendAction("text_command", { text })
+    return send({ action: "text_command", text })
 }
 
 async function revealWindow() {

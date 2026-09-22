@@ -12,7 +12,6 @@ export {
     enableIpc,
     disableIpc,
     disconnectIpc,
-    sendAction,
     sendIpcMessage,
     sendTextCommand,
     stopJarvisApp,
