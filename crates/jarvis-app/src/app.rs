@@ -2,7 +2,6 @@ use std::sync::mpsc::Receiver;
 use std::time::SystemTime;
 
 use jarvis_core::{audio_buffer::AudioRingBuffer, audio_processing, commands, config, listener, recorder, stt, COMMANDS_LIST, intent, voices, ipc::{self, IpcEvent}, i18n, slots};
-use rand::seq::SliceRandom;
 
 use crate::should_stop;
 

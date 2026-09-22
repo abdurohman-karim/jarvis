@@ -158,7 +158,6 @@ fn main() -> Result<(), String> {
             IpcAction::Ping => {
                 // handled internally by server
             }
-            _ => {}
         }
     });
 

@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 // use rodio::{Decoder, OutputStream, OutputStreamHandle, Sink};
-use rodio::{Decoder, OutputStream, Sink};
+use rodio::{Decoder, Sink};
 
 // NOTE: OutputStream is not Send/Sync on macOS (cpal CoreAudio), so it cannot live
 // in a static. Instead it is leaked with mem::forget to keep the device open for the
