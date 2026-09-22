@@ -14,5 +14,12 @@ fn main() {
     };
     println!("cargo:rustc-link-search=native={}", lib_path.display());
 
+    // rustc-link-arg applies to this package's own binaries only, i.e. the unit test
+    // harness: it has no rpath of its own (the app / cli set theirs in their build.rs),
+    // so point it straight at the checked-in library directory
+    if target_os == "macos" || target_os == "linux" {
+        println!("cargo:rustc-link-arg=-Wl,-rpath,{}", lib_path.display());
+    }
+
     println!("cargo:rerun-if-changed=build.rs");
 }
