@@ -5,9 +5,6 @@
       "app",
       "dmg"
     ],
-    "externalBin": [
-      "binaries/jarvis-app"
-    ],
     "resources": {
       "../../lib/macos/libvosk.dylib": "lib/libvosk.dylib",
       "../../vendor/pvrecorder/data/lib/mac/arm64/libpv_recorder.dylib": "lib/libpv_recorder.dylib"

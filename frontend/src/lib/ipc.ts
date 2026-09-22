@@ -35,21 +35,31 @@ export function disableIpc() {
     disconnectIpc()
 }
 
-export function connectIpc(port: number = 9712) {
-    if (ws?.readyState === WebSocket.OPEN) return
+export async function connectIpc(port: number = 9712) {
+    if (ws?.readyState === WebSocket.OPEN || ws?.readyState === WebSocket.CONNECTING) return
+    manualDisconnect = false
+
+    // the assistant writes a session token on startup; no token means it is not running yet
+    let token: string
+    try {
+        token = await invoke<string>("get_ipc_token")
+    } catch {
+        scheduleReconnect()
+        return
+    }
 
     ws = new WebSocket(`ws://127.0.0.1:${port}`)
 
     ws.onopen = () => {
-        ipcConnected.set(true)
-        jarvisState.set("idle")
-        isMuted.set(false)
-        console.log("[IPC] connected")
+        // the server answers a valid token with `started`; that marks us connected
+        ws?.send(JSON.stringify({ action: "auth", token }))
     }
 
     ws.onclose = () => {
         ipcConnected.set(false)
+        jarvisState.set("disconnected")
         console.log("[IPC] disconnected")
+        scheduleReconnect()
     }
 
     ws.onerror = (err) => {
@@ -122,6 +132,11 @@ function handleEvent(data: any) {
             break
 
         case "started":
+            if (!get(ipcConnected)) {
+                console.log("[IPC] connected")
+                ipcConnected.set(true)
+                isMuted.set(false)
+            }
             jarvisState.set("idle")
             break
 

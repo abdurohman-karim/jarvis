@@ -21,7 +21,9 @@ mkdir -p crates/jarvis-gui/binaries
 cp target/release/jarvis-app "crates/jarvis-gui/binaries/jarvis-app-$TARGET"
 
 echo "==> Jarvis.app + dmg"
-tauri build "$@"
+# the sidecar config is applied only here: with externalBin in tauri.conf.json,
+# `tauri dev` would copy the release sidecar over target/debug/jarvis-app
+tauri build --config crates/jarvis-gui/tauri.sidecar.conf.json "$@"
 
 echo
 echo "Done:"

@@ -78,6 +78,8 @@ pub const VOICES_PATH: &str = "voices"; // extended from SOUND_PATH (resources/s
 
 pub const BUNDLE_IDENTIFIER: &str = "com.jarvis.assistant";
 pub const DB_FILE_NAME: &str = "app.db";
+// session token the IPC server expects from clients (written by jarvis-app on startup)
+pub const IPC_TOKEN_FILE: &str = "ipc.token";
 pub const LOG_FILE_NAME: &str = "log.txt";
 pub const APP_VERSION: Option<&str> = option_env!("CARGO_PKG_VERSION");
 

@@ -45,6 +45,9 @@ pub enum IpcEvent {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "action", rename_all = "snake_case")]
 pub enum IpcAction {
+    // First message of every connection: the token from ipc.token in the config dir
+    Auth { token: String },
+
     // Request graceful shutdown
     Stop,
     

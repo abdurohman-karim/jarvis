@@ -131,6 +131,9 @@ fn main() -> Result<(), String> {
     // init IPC
     info!("Initializing IPC...");
     ipc::init();
+    if let Err(e) = ipc::init_token() {
+        error!("Failed to write IPC token: {}. GUI will not be able to connect.", e);
+    }
 
     // command executor: runs commands off the audio thread
     let executor = executor::spawn(Arc::clone(&rt));
@@ -153,7 +156,7 @@ fn main() -> Result<(), String> {
                 info!("Received text command: {}", text);
                 ipc_executor.submit_text(text);
             }
-            IpcAction::Ping => {
+            IpcAction::Ping | IpcAction::Auth { .. } => {
                 // handled internally by server
             }
         }

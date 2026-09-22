@@ -17,3 +17,11 @@ pub fn get_log_file_path() -> String {
         .map(|p| p.display().to_string())
         .unwrap_or_else(|| "unknown".to_string())
 }
+// IPC token of the running assistant (same user, same config dir)
+#[tauri::command]
+pub fn get_ipc_token() -> Result<String, String> {
+    let dir = jarvis_core::APP_CONFIG_DIR.get().ok_or("config dir not initialized")?;
+    std::fs::read_to_string(dir.join(config::IPC_TOKEN_FILE))
+        .map(|t| t.trim().to_string())
+        .map_err(|e| e.to_string())
+}
