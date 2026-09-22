@@ -36,6 +36,19 @@ fn main() -> Result<(), String> {
     info!("Config directory is: {}", APP_CONFIG_DIR.get().unwrap().display());
     info!("Log directory is: {}", APP_LOG_DIR.get().unwrap().display());
 
+    // single instance: the IPC port doubles as the instance lock
+    let ipc_listener = match ipc::bind() {
+        Ok(l) => l,
+        Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => {
+            error!("Another Jarvis instance is already running (IPC port {} is busy). Exiting.", ipc::IPC_PORT);
+            return Err("already running".into());
+        }
+        Err(e) => {
+            error!("Failed to bind IPC port {}: {}", ipc::IPC_PORT, e);
+            return Err(e.to_string());
+        }
+    };
+
     // initialize settings
     let settings = db::init();
 
@@ -152,7 +165,7 @@ fn main() -> Result<(), String> {
     // start WebSocket server on the shared runtime
     let ipc_rt = Arc::clone(&rt);
     std::thread::spawn(move || {
-        ipc_rt.block_on(ipc::start_server());
+        ipc_rt.block_on(ipc::start_server_on(ipc_listener));
     });
     
     // start the app (in the background thread)

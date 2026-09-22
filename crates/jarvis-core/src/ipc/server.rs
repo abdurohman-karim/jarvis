@@ -74,18 +74,32 @@ fn handle_action(action: IpcAction) {
     }
 }
 
+// Bind the IPC port synchronously. Done first thing at startup so that a second
+// instance fails fast instead of running half-initialized without IPC.
+pub fn bind() -> std::io::Result<std::net::TcpListener> {
+    let addr = format!("{}:{}", IPC_ADDR, IPC_PORT);
+    let listener = std::net::TcpListener::bind(&addr)?;
+    listener.set_nonblocking(true)?;
+    Ok(listener)
+}
+
 // Start the WebSocket server (blocking)
 pub async fn start_server() {
-    let addr = format!("{}:{}", IPC_ADDR, IPC_PORT);
-    let socket_addr: SocketAddr = addr.parse().expect("Invalid IPC address");
+    match bind() {
+        Ok(l) => start_server_on(l).await,
+        Err(e) => error!("IPC: Failed to bind to {}:{}: {}", IPC_ADDR, IPC_PORT, e),
+    }
+}
 
-    let listener = match TcpListener::bind(&socket_addr).await {
+// Start the WebSocket server on an already bound listener (see `bind`)
+pub async fn start_server_on(std_listener: std::net::TcpListener) {
+    let listener = match TcpListener::from_std(std_listener) {
         Ok(l) => {
-            info!("IPC: WebSocket server listening on ws://{}", addr);
+            info!("IPC: WebSocket server listening on ws://{}:{}", IPC_ADDR, IPC_PORT);
             l
         }
         Err(e) => {
-            error!("IPC: Failed to bind to {}: {}", addr, e);
+            error!("IPC: Failed to register listener: {}", e);
             return;
         }
     };

@@ -51,3 +51,9 @@ tokenizers = { version = "0.22", default-features = false }
 regex = "1"
 sys-locale = "0.3"
 
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true

@@ -69,12 +69,7 @@ fn main() {
             tauri_commands::show_in_folder,
 
             // sys
-            tauri_commands::get_current_ram_usage,
-            tauri_commands::get_peak_ram_usage,
-            tauri_commands::get_cpu_temp,
-            tauri_commands::get_cpu_usage,
             tauri_commands::get_jarvis_app_stats,
-            tauri_commands::is_jarvis_app_running,
             tauri_commands::run_jarvis_app,
 
             // vosk
