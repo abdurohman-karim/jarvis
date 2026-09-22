@@ -54,21 +54,21 @@ pub fn init_microphone(device_index: i32, frame_length: u32) -> bool {
     }
 }
 
-pub fn read_microphone(frame_buffer: &mut [i16]) {
-    // ensure microphone is initialized
-    if RECORDER.get().is_some() {
-        // read to frame buffer
+// Blocks until a full frame is available. Returns false if nothing was read
+// (recorder not initialized or read error) - the buffer is left untouched then.
+pub fn read_microphone(frame_buffer: &mut [i16]) -> bool {
+    let Some(recorder) = RECORDER.get() else {
+        return false;
+    };
 
-        let frame = RECORDER.get().unwrap().read();
-
-        match frame {
-            Ok(f) => {
-                frame_buffer.copy_from_slice(f.as_slice());
-            }
-            Err(msg) => {
-                // @TODO: Fix? PvRecorder always wait for PCM buffer size of 512.
-                error!("Failed to read audio frame. {:?}", msg);
-            }
+    match recorder.read() {
+        Ok(f) => {
+            frame_buffer.copy_from_slice(f.as_slice());
+            true
+        }
+        Err(msg) => {
+            error!("Failed to read audio frame. {:?}", msg);
+            false
         }
     }
 }

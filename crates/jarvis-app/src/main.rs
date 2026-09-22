@@ -1,7 +1,6 @@
 use jarvis_core::slots;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc;
 
 // include core
 use jarvis_core::{
@@ -18,6 +17,7 @@ mod log;
 
 // include app
 mod app;
+mod executor;
 
 // include tray
 mod tray;
@@ -132,9 +132,10 @@ fn main() -> Result<(), String> {
     info!("Initializing IPC...");
     ipc::init();
 
-    // channel for text commands (manually written in the GUI)
-    let (text_cmd_tx, text_cmd_rx) = mpsc::channel::<String>();
+    // command executor: runs commands off the audio thread
+    let executor = executor::spawn(Arc::clone(&rt));
 
+    let ipc_executor = executor.clone();
     ipc::set_action_handler(move |action| {
         match action {
             IpcAction::Stop => {
@@ -151,9 +152,7 @@ fn main() -> Result<(), String> {
             }
             IpcAction::TextCommand { text } => {
                 info!("Received text command: {}", text);
-                if let Err(e) = text_cmd_tx.send(text) {
-                    error!("Failed to send text command to app: {}", e);
-                }
+                ipc_executor.submit_text(text);
             }
             IpcAction::Ping => {
                 // handled internally by server
@@ -167,10 +166,9 @@ fn main() -> Result<(), String> {
         ipc_rt.block_on(ipc::start_server_on(ipc_listener));
     });
     
-    // start the app (in the background thread)
-    let app_rt = Arc::clone(&rt);
+    // start the audio pipeline (in the background thread)
     std::thread::spawn(move || {
-        let _ = app::start(text_cmd_rx, &app_rt);
+        let _ = app::start(executor);
         // the main thread is blocked in the tray event loop, so once the
         // assistant loop ends (e.g. "stop" from the GUI) end the process here
         info!("Assistant loop finished, exiting.");

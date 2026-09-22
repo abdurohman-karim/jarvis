@@ -42,8 +42,13 @@ pub fn init() -> Result<(), ()> {
     Ok(())
 }
 
-pub fn read_microphone(frame_buffer: &mut [i16]) {
-    pvrecorder::read_microphone(frame_buffer);
+// Blocks until a full frame is available; false on error (buffer untouched)
+pub fn read_microphone(frame_buffer: &mut [i16]) -> bool {
+    pvrecorder::read_microphone(frame_buffer)
+}
+
+pub const fn frame_length() -> usize {
+    FRAME_LENGTH as usize
 }
 
 pub fn start_recording() -> Result<(), ()> {
