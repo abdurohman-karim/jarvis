@@ -110,3 +110,30 @@ mod tests {
         assert!(result.is_ok());
     }
 }
+#[cfg(test)]
+mod hard_timeout {
+    use std::time::{Duration, Instant};
+    use crate::lua::{self, CommandContext, SandboxLevel, LuaError};
+
+    // a script blocked inside a host call must still be cut off by the timeout
+    #[test]
+    fn blocking_host_call_times_out() {
+        let dir = tempfile::tempdir().unwrap();
+        let script = dir.path().join("script.lua");
+        // jarvis.sleep blocks the thread in Rust, the instruction hook cannot fire meanwhile
+        std::fs::write(&script, "jarvis.sleep(5000)\nreturn true").unwrap();
+
+        let ctx = CommandContext {
+            phrase: String::new(),
+            command_id: "t".into(),
+            command_path: dir.path().to_path_buf(),
+            language: "en".into(),
+            slots: None,
+        };
+
+        let start = Instant::now();
+        let result = lua::execute(&script, ctx, SandboxLevel::Minimal, Duration::from_millis(300));
+        assert!(matches!(result, Err(LuaError::Timeout)), "got {:?}", result.map(|r| r.chain));
+        assert!(start.elapsed() < Duration::from_secs(2), "took {:?}", start.elapsed());
+    }
+}
