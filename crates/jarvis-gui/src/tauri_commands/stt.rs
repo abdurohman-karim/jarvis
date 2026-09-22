@@ -6,6 +6,7 @@ pub struct VoskModel {
     pub name: String,
     pub language: String,
     pub size: String,
+    pub bundled: bool,
 }
 
 #[derive(Serialize)]
@@ -22,6 +23,7 @@ pub fn list_vosk_models() -> Vec<VoskModel> {
             name: m.name,
             language: m.language,
             size: m.size,
+            bundled: m.bundled,
         })
         .collect()
 }

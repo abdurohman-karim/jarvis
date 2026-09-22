@@ -12,6 +12,7 @@
     import Input from "@/components/ui/Input.svelte"
     import Button from "@/components/ui/Button.svelte"
     import Icon from "@/components/ui/Icon.svelte"
+    import VoskModels from "@/components/VoskModels.svelte"
 
     $: t = (key: string) => translate($translations, key)
 
@@ -73,6 +74,19 @@
     assistantVoice.subscribe(value => {
         voiceVal = value
     })
+
+    const languageNames: Record<string, string> = {
+        us: "English", ru: "Русский", uk: "Українська", de: "Deutsch", fr: "Français", es: "Español",
+    }
+
+    // installed models (bundled + downloaded), re-read after a download / delete
+    async function loadVoskModels() {
+        const voskModels = await invoke<{ name: string; language: string; size: string }[]>("list_vosk_models")
+        availableVoskModels = voskModels.map(m => ({
+            label: `${m.name} (${languageNames[m.language] ?? m.language}, ${m.size})`,
+            value: m.name
+        }))
+    }
 
     // ### ACTIONS
     async function selectVoice(voiceId: string) {
@@ -138,11 +152,7 @@
             const languageNames: Record<string, string> = {
                 us: "English", ru: "Русский", uk: "Українська", de: "Deutsch", fr: "Français", es: "Español",
             }
-            const voskModels = await invoke<{ name: string; language: string; size: string }[]>("list_vosk_models")
-            availableVoskModels = voskModels.map(m => ({
-                label: `${m.name} (${languageNames[m.language] ?? m.language}, ${m.size})`,
-                value: m.name
-            }))
+            await loadVoskModels()
 
             const glinerModels = await invoke<{ display_name: string; value: string }[]>("list_gliner_models")
             availableGlinerModels = glinerModels.map(m => ({ label: m.display_name, value: m.value }))
@@ -265,6 +275,7 @@
                 <Select
                     bind:value={selectedVoskModel}
                     options={[{ label: t("settings-auto-detect"), value: "" }, ...availableVoskModels]}
+                    disabled={availableVoskModels.length === 0}
                 />
             </Field>
         {/key}
@@ -278,6 +289,10 @@
                 </div>
             </div>
         {/if}
+
+        <Field label={t("settings-vosk-catalog")} description={t("settings-vosk-catalog-desc")}>
+            <VoskModels on:change={loadVoskModels} />
+        </Field>
 
         {#key intentOptions}
             <Field label={t("settings-intent-engine")} description={t("settings-intent-engine-desc")}>

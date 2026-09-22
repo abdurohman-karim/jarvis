@@ -3331,11 +3331,13 @@ dependencies = [
 name = "jarvis-gui"
 version = "0.1.0"
 dependencies = [
+ "futures-util",
  "jarvis-core",
  "log",
  "once_cell",
  "parking_lot",
  "platform-dirs",
+ "reqwest 0.13.1",
  "serde",
  "serde_json",
  "simple-log",
@@ -3345,6 +3347,9 @@ dependencies = [
  "tauri-plugin-dialog",
  "tauri-plugin-fs",
  "tauri-plugin-shell",
+ "tempfile",
+ "tokio",
+ "zip",
 ]
 
 [[package]]
@@ -5838,12 +5843,14 @@ dependencies = [
  "sync_wrapper",
  "tokio",
  "tokio-rustls",
+ "tokio-util",
  "tower",
  "tower-http",
  "tower-service",
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+ "wasm-streams",
  "web-sys",
 ]
 
@@ -9500,6 +9507,7 @@ dependencies = [
  "crc32fast",
  "crossbeam-utils",
  "displaydoc",
+ "flate2",
  "indexmap 2.13.0",
  "num_enum",
  "thiserror 1.0.69",

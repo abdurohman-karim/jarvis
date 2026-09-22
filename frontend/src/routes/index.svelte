@@ -1,5 +1,6 @@
 <script lang="ts">
     import { onMount } from "svelte"
+    import { goto } from "@roxi/routify"
     import { invoke } from "@tauri-apps/api/core"
 
     import StatusOrb from "@/components/StatusOrb.svelte"
@@ -24,8 +25,17 @@
 
     $: t = (key: string) => translate($translations, key)
 
-    onMount(() => {
+    // the assistant cannot start without a speech recognition model
+    let hasSttModel = true
+
+    onMount(async () => {
         updateJarvisStats()
+        try {
+            const models = await invoke<unknown[]>("list_vosk_models")
+            hasSttModel = models.length > 0
+        } catch {
+            hasSttModel = true
+        }
     })
 
     function toggleMute() {
@@ -61,7 +71,10 @@
         <StatusOrb />
 
         <div class="hero-text">
-            {#if !$isJarvisRunning}
+            {#if !$isJarvisRunning && !hasSttModel}
+                <p class="hero-title">{t("assistant-no-model")}</p>
+                <p class="hero-hint">{t("assistant-no-model-hint")}</p>
+            {:else if !$isJarvisRunning}
                 <p class="hero-title">{t("assistant-not-running")}</p>
                 <p class="hero-hint">{t("assistant-offline-hint")}</p>
             {:else if $lastRecognizedText}
@@ -74,7 +87,12 @@
         </div>
 
         <div class="hero-actions">
-            {#if !$isJarvisRunning}
+            {#if !$isJarvisRunning && !hasSttModel}
+                <Button variant="primary" size="lg" on:click={() => $goto("/settings")}>
+                    <Icon name="download" size={15} />
+                    {t("btn-get-model")}
+                </Button>
+            {:else if !$isJarvisRunning}
                 <Button variant="primary" size="lg" on:click={startAssistant} disabled={$assistantBusy}>
                     <Icon name="play" size={15} />
                     {$assistantBusy ? t("btn-starting") : t("btn-start")}

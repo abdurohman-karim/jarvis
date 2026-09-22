@@ -63,6 +63,8 @@ cd frontend && npm install && cd ..
 # 2. build the background assistant and copy resources + libvosk.dylib next to the binary
 cargo build -p jarvis-app
 python3 post_build.py --sync
+# (speech models: the repo ships some in resources/vosk for development; release builds
+#  ship none - users download them from Settings into the app data folder)
 
 # 3a. run the assistant only (menu-bar icon, no window)
 ./target/debug/jarvis-app

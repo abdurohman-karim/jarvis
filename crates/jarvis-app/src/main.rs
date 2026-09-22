@@ -83,8 +83,9 @@ fn main() -> Result<(), String> {
     }
 
     // init stt engine
-    if stt::init().is_err() {
+    if let Err(e) = stt::init() {
         // @TODO. Allow continuing even without STT, if commands is using keywords or smthng?
+        error!("Speech recognition could not be initialized: {}. Download a Vosk model in the GUI settings.", e);
         app::close(1); // cannot continue without stt
     }
 

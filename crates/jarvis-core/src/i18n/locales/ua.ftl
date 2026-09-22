@@ -87,7 +87,6 @@ settings-vosk-model-desc =
     Виберіть модель Vosk для розпізнавання мовлення.
     Ви можете завантажити моделі тут: https://alphacephei.com/vosk/models
 settings-models-not-found = Моделі не знайдено
-settings-models-hint = Помістіть моделі Vosk в папку resources/vosk
 
 # settings - openai
 settings-openai-key = Ключ OpenAI
@@ -149,3 +148,16 @@ btn-restart = Перезапустити
 btn-restarting = Перезапуск…
 commands-reload = Оновити
 settings-restart-hint = Зміни застосуються після перезапуску асистента
+settings-vosk-catalog = Доступні моделі
+settings-vosk-catalog-desc = Моделі завантажуються з alphacephei.com у теку даних застосунку.
+settings-models-hint = Завантажте модель зі списку нижче — без неї асистент не запуститься.
+models-download = Завантажити
+models-downloading = Завантаження…
+models-extracting = Розпакування…
+models-delete = Видалити
+models-installed = Встановлена
+models-bundled = Вбудована
+models-error = Помилка
+assistant-no-model = Немає моделі розпізнавання
+assistant-no-model-hint = Завантажте модель Vosk для вашої мови в налаштуваннях.
+btn-get-model = Завантажити модель

@@ -27,6 +27,10 @@ pub use sys::*;
 mod stt;
 pub use stt::*;
 
+// model downloads
+mod models;
+pub use models::*;
+
 // import i18n commands
 mod i18n;
 pub use i18n::*;

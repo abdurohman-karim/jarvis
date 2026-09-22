@@ -38,7 +38,6 @@
       "../../resources/commands": "resources/commands",
       "../../resources/sound": "resources/sound",
       "../../resources/rustpotter": "resources/rustpotter",
-      "../../resources/vosk": "resources/vosk",
       "../../resources/keywords": "resources/keywords",
       "../../resources/models": "resources/models"
     }

@@ -13,6 +13,12 @@ tauri-plugin-fs = "2"
 
 sysinfo.workspace = true
 
+# on-demand model downloads
+reqwest = { workspace = true, features = ["stream"] }
+futures-util.workspace = true
+zip = { version = "1", default-features = false, features = ["deflate"] }
+tokio = { version = "1", features = ["fs", "io-util", "rt-multi-thread"] }
+
 once_cell.workspace = true
 log.workspace = true
 simple-log = "2.4"
@@ -27,3 +33,6 @@ tauri-build = { version = "2", features = [] }
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
+
+[dev-dependencies]
+tempfile.workspace = true

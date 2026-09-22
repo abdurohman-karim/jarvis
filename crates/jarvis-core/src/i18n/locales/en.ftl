@@ -87,7 +87,6 @@ settings-vosk-model-desc =
     Select Vosk model for speech recognition.
     You can download models here: https://alphacephei.com/vosk/models
 settings-models-not-found = Models not found
-settings-models-hint = Place Vosk models in resources/vosk folder
 
 # settings - openai
 settings-openai-key = OpenAI Key
@@ -149,3 +148,16 @@ btn-restart = Restart
 btn-restarting = Restarting…
 commands-reload = Reload
 settings-restart-hint = Changes take effect after the assistant is restarted
+settings-vosk-catalog = Available models
+settings-vosk-catalog-desc = Models are downloaded from alphacephei.com into the app data folder.
+settings-models-hint = Download a model from the list below - the assistant cannot start without one.
+models-download = Download
+models-downloading = Downloading…
+models-extracting = Extracting…
+models-delete = Delete
+models-installed = Installed
+models-bundled = Bundled
+models-error = Error
+assistant-no-model = No speech recognition model
+assistant-no-model-hint = Download a Vosk model for your language in Settings.
+btn-get-model = Get a model

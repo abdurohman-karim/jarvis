@@ -79,6 +79,9 @@ fn main() {
 
             // gliner
             tauri_commands::list_gliner_models,
+            tauri_commands::vosk_model_catalog,
+            tauri_commands::download_vosk_model,
+            tauri_commands::delete_vosk_model,
             tauri_commands::get_backend_options,
 
             // i18n
