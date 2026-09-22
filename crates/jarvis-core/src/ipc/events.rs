@@ -33,6 +33,12 @@ pub enum IpcEvent {
 
     // request GUI to reveal/focus window
     RevealWindow,
+
+    // microphone muted / unmuted
+    Muted { muted: bool },
+
+    // command packs were re-read from disk
+    CommandsReloaded { count: usize },
 }
 
 // Actions sent from GUI to jarvis-app

@@ -4,8 +4,9 @@
 
     import Input from "@/components/ui/Input.svelte"
     import Icon from "@/components/ui/Icon.svelte"
+    import Button from "@/components/ui/Button.svelte"
     import EmptyState from "@/components/ui/EmptyState.svelte"
-    import { currentLanguage, translations, translate } from "@/stores"
+    import { currentLanguage, translations, translate, isJarvisRunning, ipcConnected, reloadCommands, commandsVersion } from "@/stores"
 
     $: t = (key: string) => translate($translations, key)
 
@@ -18,9 +19,10 @@
 
     let commands: Command[] = []
     let loading = true
+    let reloading = false
     let query = ""
 
-    onMount(async () => {
+    async function load() {
         try {
             commands = await invoke<Command[]>("get_commands_list")
         } catch (err) {
@@ -29,7 +31,23 @@
         } finally {
             loading = false
         }
-    })
+    }
+
+    // re-read packs from disk; if the assistant is running, ask it to reload too
+    // (it answers with `commands_reloaded`, which bumps commandsVersion)
+    async function reload() {
+        reloading = true
+        if ($isJarvisRunning && $ipcConnected) {
+            reloadCommands()
+        }
+        await load()
+        setTimeout(() => reloading = false, 600)
+    }
+
+    onMount(load)
+
+    // assistant finished a reload -> refresh the list
+    $: if ($commandsVersion) load()
 
     function phrasesFor(cmd: Command): string[] {
         return cmd.phrases[$currentLanguage] ?? cmd.phrases["en"] ?? Object.values(cmd.phrases)[0] ?? []
@@ -58,6 +76,10 @@
             <h1>{t("commands-title")}</h1>
             <p class="page-subtitle">{t("commands-count").replace(/\{\s*\$count\s*\}/, String(commands.length))}</p>
         </div>
+        <Button size="sm" on:click={reload} disabled={reloading}>
+            <Icon name="refresh" size={14} />
+            {t("commands-reload")}
+        </Button>
     </header>
 
     <Input bind:value={query} placeholder={t("commands-search")} icon="search" />

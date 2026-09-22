@@ -16,8 +16,14 @@ export {
     sendIpcMessage,
     sendTextCommand,
     stopJarvisApp,
-    reloadCommands
+    reloadCommands,
+    setMuted,
+    isMuted,
+    commandsVersion
 } from "./lib/ipc"
+
+import { get } from "svelte/store"
+import { stopJarvisApp as ipcStop } from "./lib/ipc"
 
 // re-export i18n
 export {
@@ -71,6 +77,48 @@ export async function updateJarvisStats() {
     } catch (err) {
         console.error("failed to get jarvis stats:", err)
     }
+}
+
+// ### ASSISTANT PROCESS CONTROL
+export const assistantBusy = writable(false)
+
+export async function startAssistant() {
+    assistantBusy.set(true)
+    try {
+        await invoke("run_jarvis_app")
+        // give it a moment to come up, then poll until the process is visible
+        for (let i = 0; i < 10; i++) {
+            await new Promise(r => setTimeout(r, 500))
+            await updateJarvisStats()
+            if (get(isJarvisRunning)) break
+        }
+    } catch (err) {
+        console.error("Failed to run jarvis-app:", err)
+    } finally {
+        assistantBusy.set(false)
+    }
+}
+
+export async function stopAssistant() {
+    assistantBusy.set(true)
+    try {
+        ipcStop()
+        // the process plays a goodbye sound before exiting, so poll for a while
+        for (let i = 0; i < 15; i++) {
+            await new Promise(r => setTimeout(r, 1000))
+            await updateJarvisStats()
+            if (!get(isJarvisRunning)) break
+        }
+    } catch (err) {
+        console.error("Failed to stop jarvis-app:", err)
+    } finally {
+        assistantBusy.set(false)
+    }
+}
+
+export async function restartAssistant() {
+    await stopAssistant()
+    await startAssistant()
 }
 
 // polling manager

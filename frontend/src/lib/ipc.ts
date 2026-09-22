@@ -11,6 +11,9 @@ export const ipcConnected = writable(false)
 export const lastRecognizedText = writable("")
 export const lastExecutedCommand = writable("")
 export const lastError = writable("")
+export const isMuted = writable(false)
+// bumps every time the assistant reloaded its command packs
+export const commandsVersion = writable(0)
 
 // ### CONNECTION ###
 
@@ -40,6 +43,7 @@ export function connectIpc(port: number = 9712) {
     ws.onopen = () => {
         ipcConnected.set(true)
         jarvisState.set("idle")
+        isMuted.set(false)
         console.log("[IPC] connected")
     }
 
@@ -133,6 +137,14 @@ function handleEvent(data: any) {
             // bring window to foreground
             revealWindow()
             break
+
+        case "muted":
+            isMuted.set(!!data.muted)
+            break
+
+        case "commands_reloaded":
+            commandsVersion.update(v => v + 1)
+            break
     }
 }
 
@@ -153,6 +165,10 @@ export function stopJarvisApp() {
 
 export function reloadCommands() {
     return sendAction("reload_commands")
+}
+
+export function setMuted(muted: boolean) {
+    return sendAction("set_muted", { muted })
 }
 
 export function sendIpcMessage(message: object): Promise<void> {

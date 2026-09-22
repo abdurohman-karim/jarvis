@@ -3,7 +3,7 @@
     import { invoke } from "@tauri-apps/api/core"
 
     import { showInExplorer } from "@/functions"
-    import { appInfo, assistantVoice, translations, translate } from "@/stores"
+    import { appInfo, assistantVoice, translations, translate, isJarvisRunning, restartAssistant, assistantBusy } from "@/stores"
 
     import Card from "@/components/ui/Card.svelte"
     import Field from "@/components/ui/Field.svelte"
@@ -47,6 +47,8 @@
 
     let saving = false
     let saved = false
+    // settings were saved while the assistant was running: it only reads them at startup
+    let restartNeeded = false
     let savedTimer: ReturnType<typeof setTimeout> | null = null
 
     let voiceVal = ""
@@ -103,6 +105,7 @@
 
             assistantVoice.set(voiceVal)
             saved = true
+            restartNeeded = $isJarvisRunning
             if (savedTimer) clearTimeout(savedTimer)
             savedTimer = setTimeout(() => saved = false, 4000)
         } catch (err) {
@@ -347,7 +350,13 @@
     </Card>
 
     <div class="save-bar">
-        {#if saved}
+        {#if restartNeeded && $isJarvisRunning}
+            <span class="restart-hint">{t("settings-restart-hint")}</span>
+            <Button size="sm" on:click={async () => { await restartAssistant(); restartNeeded = false }} disabled={$assistantBusy}>
+                <Icon name="refresh" size={14} />
+                {$assistantBusy ? t("btn-restarting") : t("btn-restart")}
+            </Button>
+        {:else if saved}
             <span class="saved"><Icon name="check" size={14} /> {t("notification-saved")}</span>
         {/if}
         <Button variant="primary" on:click={saveSettings} disabled={saving}>
@@ -456,6 +465,12 @@
         -webkit-backdrop-filter: blur(12px);
         border-top: 1px solid var(--border);
         z-index: 10;
+    }
+
+    .restart-hint {
+        flex: 1;
+        font-size: 12.5px;
+        color: var(--warning);
     }
 
     .saved {

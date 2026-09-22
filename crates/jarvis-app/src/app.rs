@@ -17,7 +17,22 @@ use jarvis_core::{audio_buffer::AudioRingBuffer, audio_processing, config, liste
 use crate::executor::{self, ExecutorHandle};
 use crate::should_stop;
 
+use std::sync::atomic::{AtomicBool, Ordering};
+
 const FRAME_LENGTH: usize = recorder::frame_length();
+
+// while muted, captured audio is discarded (nothing reaches VAD / wake word / STT)
+static MUTED: AtomicBool = AtomicBool::new(false);
+
+pub fn set_muted(muted: bool) {
+    MUTED.store(muted, Ordering::SeqCst);
+    info!("Microphone {}", if muted { "muted" } else { "unmuted" });
+    ipc::send(IpcEvent::Muted { muted });
+}
+
+pub fn is_muted() -> bool {
+    MUTED.load(Ordering::SeqCst)
+}
 const SAMPLE_RATE: usize = 16000;
 
 // ~2 seconds of audio may queue up before frames get dropped
@@ -158,6 +173,14 @@ fn processing_loop(frames: Receiver<Frame>, executor: ExecutorHandle) -> Result<
         let Some(frame) = next_frame(&frames) else {
             break;
         };
+
+        if is_muted() {
+            if vad_state == VadState::VoiceActive {
+                reset_after_command(&mut vad_state, &mut silence_frames, &mut audio_buffer);
+            }
+            continue;
+        }
+
         let processed = audio_processing::process(&frame);
 
         match vad_state {
@@ -267,6 +290,10 @@ fn listen_for_command(frames: &Receiver<Frame>, executor: &ExecutorHandle, prefe
         let Some(frame) = next_frame(frames) else {
             return CommandOutcome::Stop;
         };
+        if is_muted() {
+            info!("Muted while listening for a command, returning to wake word mode.");
+            return CommandOutcome::Abandoned;
+        }
         let processed = audio_processing::process(&frame);
 
         match vad_state {

@@ -7,7 +7,7 @@ use jarvis_core::{
     audio, audio_processing, commands, config, db, listener, recorder, stt, intent,
     ipc::{self, IpcAction},
     i18n, voices, models,
-    APP_CONFIG_DIR, APP_LOG_DIR, COMMANDS_LIST, DB,
+    APP_CONFIG_DIR, APP_LOG_DIR, DB,
 };
 
 // include log
@@ -92,7 +92,7 @@ fn main() -> Result<(), String> {
         }
     };
     info!("Commands initialized. Count: {}, List: {:?}", cmds.len(), commands::list_paths(&cmds));
-    COMMANDS_LIST.set(cmds).unwrap();
+    commands::set_list(cmds);
 
     // init audio
     if audio::init().is_err() {
@@ -113,7 +113,7 @@ fn main() -> Result<(), String> {
 
     // init intent-recognition engine
     rt.block_on(async {
-        if let Err(e) = intent::init(COMMANDS_LIST.get().unwrap()).await {
+        if let Err(e) = intent::init(&commands::list()).await {
             error!("Failed to initialize intent classifier: {}", e);
             app::close(1);
         }
@@ -144,11 +144,10 @@ fn main() -> Result<(), String> {
             }
             IpcAction::ReloadCommands => {
                 info!("Received reload commands request");
-                // TODO: implement reload
+                ipc_executor.submit_reload();
             }
             IpcAction::SetMuted { muted } => {
-                info!("Received mute request: {}", muted);
-                // TODO: implement mute
+                app::set_muted(muted);
             }
             IpcAction::TextCommand { text } => {
                 info!("Received text command: {}", text);

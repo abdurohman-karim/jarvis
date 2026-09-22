@@ -15,15 +15,17 @@
         updateJarvisStats,
         enableIpc,
         disableIpc,
-        stopJarvisApp,
+        startAssistant,
+        stopAssistant,
+        assistantBusy,
+        isMuted,
+        setMuted,
         translate,
         translations
     } from "@/stores"
 
     $: t = (key: string) => translate($translations, key)
 
-    let launching = false
-    let stopping = false
     let wasRunning = false
 
     isJarvisRunning.subscribe((value) => {
@@ -44,43 +46,18 @@
         disableIpc()
     })
 
-    async function start() {
-        launching = true
-        try {
-            await invoke("run_jarvis_app")
-            setTimeout(async () => {
-                await updateJarvisStats()
-                launching = false
-            }, 2500)
-        } catch (err) {
-            console.error("Failed to run jarvis-app:", err)
-            launching = false
-        }
-    }
-
-    async function stop() {
-        stopping = true
-        try {
-            stopJarvisApp()
-            // the process plays a goodbye sound before exiting, so poll for a while
-            for (let i = 0; i < 15; i++) {
-                await new Promise(r => setTimeout(r, 1000))
-                await updateJarvisStats()
-                if (!$isJarvisRunning) break
-            }
-        } catch (err) {
-            console.error("Failed to stop jarvis-app:", err)
-        } finally {
-            stopping = false
-        }
+    function toggleMute() {
+        setMuted(!$isMuted)
     }
 
     $: statusKey = !$isJarvisRunning
         ? "status-offline"
+        : $isMuted ? "status-muted"
         : { disconnected: "status-connecting", idle: "status-standby", listening: "status-listening", processing: "status-processing" }[$jarvisState]
 
     $: statusTone = !$isJarvisRunning
         ? ""
+        : $isMuted ? "warning"
         : $jarvisState === "disconnected" ? "warning"
         : $jarvisState === "idle" ? "success"
         : "accent"
@@ -116,14 +93,18 @@
 
         <div class="hero-actions">
             {#if !$isJarvisRunning}
-                <Button variant="primary" size="lg" on:click={start} disabled={launching}>
+                <Button variant="primary" size="lg" on:click={startAssistant} disabled={$assistantBusy}>
                     <Icon name="play" size={15} />
-                    {launching ? t("btn-starting") : t("btn-start")}
+                    {$assistantBusy ? t("btn-starting") : t("btn-start")}
                 </Button>
             {:else}
-                <Button variant="ghost" size="sm" on:click={stop} disabled={stopping}>
+                <Button variant={$isMuted ? "secondary" : "ghost"} size="sm" on:click={toggleMute}>
+                    <Icon name={$isMuted ? "mic-off" : "mic"} size={13} />
+                    {$isMuted ? t("btn-unmute") : t("btn-mute")}
+                </Button>
+                <Button variant="ghost" size="sm" on:click={stopAssistant} disabled={$assistantBusy}>
                     <Icon name="square" size={13} />
-                    {stopping ? t("btn-stopping") : t("btn-stop")}
+                    {$assistantBusy ? t("btn-stopping") : t("btn-stop")}
                 </Button>
             {/if}
         </div>
@@ -164,5 +145,6 @@
         min-height: 36px;
         display: flex;
         align-items: center;
+        gap: 8px;
     }
 </style>

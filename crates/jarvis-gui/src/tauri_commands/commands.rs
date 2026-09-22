@@ -1,22 +1,19 @@
-use jarvis_core::commands::{self, JCommand, JCommandsList};
-use once_cell::sync::Lazy;
+use jarvis_core::commands::{self, JCommand};
 
-static COMMANDS: Lazy<Vec<JCommandsList>> = Lazy::new(|| {
-    commands::parse_commands().unwrap_or_default()
-});
-
-#[tauri::command]
+// Command packs are re-read on every call: they are a handful of small toml files and
+// this way the GUI reflects a reload / newly added pack without a restart.
+#[tauri::command(async)]
 pub fn get_commands_count() -> usize {
-    COMMANDS
-        .iter()
-        .map(|list| list.commands.len())
-        .sum()
+    commands::parse_commands()
+        .map(|list| list.iter().map(|l| l.commands.len()).sum())
+        .unwrap_or(0)
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_commands_list() -> Vec<JCommand> {
-    COMMANDS
-        .iter()
-        .flat_map(|list| list.commands.clone())
+    commands::parse_commands()
+        .unwrap_or_default()
+        .into_iter()
+        .flat_map(|list| list.commands)
         .collect()
 }

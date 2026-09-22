@@ -4,12 +4,16 @@
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::Arc;
 
-use jarvis_core::{commands, config, i18n, intent, slots, voices, COMMANDS_LIST, ipc::{self, IpcEvent}};
+use jarvis_core::{commands, config, i18n, intent, slots, voices, ipc::{self, IpcEvent}};
 
-pub struct ExecRequest {
-    text: String,
-    // voice commands report back whether the assistant should keep listening (chaining)
-    done: Option<Sender<bool>>,
+pub enum ExecRequest {
+    Command {
+        text: String,
+        // voice commands report back whether the assistant should keep listening (chaining)
+        done: Option<Sender<bool>>,
+    },
+    // re-read command packs from disk and retrain the intent classifier
+    ReloadCommands,
 }
 
 #[derive(Clone)]
@@ -21,8 +25,12 @@ impl ExecutorHandle {
     // Voice command: the returned receiver yields the command's chain flag once it finished.
     pub fn submit_voice(&self, text: String) -> Receiver<bool> {
         let (done_tx, done_rx) = mpsc::channel();
-        let _ = self.tx.send(ExecRequest { text, done: Some(done_tx) });
+        let _ = self.tx.send(ExecRequest::Command { text, done: Some(done_tx) });
         done_rx
+    }
+
+    pub fn submit_reload(&self) {
+        let _ = self.tx.send(ExecRequest::ReloadCommands);
     }
 
     // Text command (typed in the GUI): never chains, result is not awaited.
@@ -36,7 +44,7 @@ impl ExecutorHandle {
             return;
         }
 
-        let _ = self.tx.send(ExecRequest { text: filtered, done: None });
+        let _ = self.tx.send(ExecRequest::Command { text: filtered, done: None });
     }
 }
 
@@ -47,9 +55,14 @@ pub fn spawn(rt: Arc<tokio::runtime::Runtime>) -> ExecutorHandle {
         .name("command-executor".into())
         .spawn(move || {
             for req in rx {
-                let chain = execute(&req.text, &rt);
-                if let Some(done) = req.done {
-                    let _ = done.send(chain);
+                match req {
+                    ExecRequest::Command { text, done } => {
+                        let chain = execute(&text, &rt);
+                        if let Some(done) = done {
+                            let _ = done.send(chain);
+                        }
+                    }
+                    ExecRequest::ReloadCommands => reload_commands(&rt),
                 }
             }
         })
@@ -67,16 +80,28 @@ pub fn strip_assistant_phrases(text: &str) -> String {
     filtered.trim().to_string()
 }
 
+fn reload_commands(rt: &tokio::runtime::Runtime) {
+    info!("Reloading commands...");
+    match commands::reload() {
+        Ok(list) => {
+            if let Err(e) = rt.block_on(intent::retrain(&list)) {
+                error!("Failed to retrain intent classifier: {}", e);
+                ipc::send(IpcEvent::Error { message: format!("Intent classifier: {}", e) });
+            }
+            let count = list.iter().map(|l| l.commands.len()).sum();
+            ipc::send(IpcEvent::CommandsReloaded { count });
+        }
+        Err(e) => {
+            error!("Failed to reload commands: {}", e);
+            ipc::send(IpcEvent::Error { message: format!("Reload failed: {}", e) });
+        }
+    }
+}
+
 // Execute a command, returns true if chaining should continue
 fn execute(text: &str, rt: &tokio::runtime::Runtime) -> bool {
-    let commands_list = match COMMANDS_LIST.get() {
-        Some(c) => c,
-        None => {
-            ipc::send(IpcEvent::Error { message: "Commands not loaded".to_string() });
-            ipc::send(IpcEvent::Idle);
-            return false;
-        }
-    };
+    let commands_list = commands::list();
+    let commands_list: &[commands::JCommandsList] = &commands_list;
 
     let cmd_result = if let Some((intent_id, confidence)) = rt.block_on(intent::classify(text)) {
         info!("Intent recognized: {} (confidence: {:.2})", intent_id, confidence);

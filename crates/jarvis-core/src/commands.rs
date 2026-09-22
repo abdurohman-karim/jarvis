@@ -9,7 +9,9 @@ use seqdiff::ratio;
 mod structs;
 pub use structs::*;
 
-use crate::{config, i18n, APP_DIR};
+use std::sync::Arc;
+
+use crate::{config, i18n, APP_DIR, COMMANDS_LIST};
 
 #[cfg(feature = "lua")]
 use crate::lua::{self, SandboxLevel, CommandContext};
@@ -59,6 +61,23 @@ pub fn parse_commands() -> Result<Vec<JCommandsList>, String> {
     }
 }
 
+
+// current command packs (snapshot)
+pub fn list() -> Arc<Vec<JCommandsList>> {
+    COMMANDS_LIST.read().clone()
+}
+
+pub fn set_list(commands: Vec<JCommandsList>) {
+    *COMMANDS_LIST.write() = Arc::new(commands);
+}
+
+// re-read all command packs from disk and replace the current list
+pub fn reload() -> Result<Arc<Vec<JCommandsList>>, String> {
+    let commands = parse_commands()?;
+    info!("Commands reloaded. Count: {}, List: {:?}", commands.len(), list_paths(&commands));
+    set_list(commands);
+    Ok(list())
+}
 
 pub fn commands_hash(commands: &[JCommandsList]) -> String {
     use sha2::{Sha256, Digest};

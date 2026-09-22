@@ -3,14 +3,14 @@ use std::sync::Arc;
 use std::fs;
 
 use once_cell::sync::OnceCell;
+use parking_lot::RwLock;
 
 use crate::commands::JCommandsList;
 use crate::i18n;
 use crate::APP_CONFIG_DIR;
 use crate::models::embedding::EmbeddingModel;
 
-// no outer Mutex needed - state is immutable after init.
-// the embedding model has its own internal Mutex.
+// the embedding model has its own internal Mutex; intents are swapped on reload
 static CLASSIFIER: OnceCell<EmbeddingClassifierState> = OnceCell::new();
 
 struct IntentVector {
@@ -20,7 +20,7 @@ struct IntentVector {
 
 struct EmbeddingClassifierState {
     model: Arc<EmbeddingModel>,
-    intents: Vec<IntentVector>,
+    intents: RwLock<Vec<IntentVector>>,
 }
 
 // model is Arc (Send+Sync), intents are read-only after init
@@ -70,9 +70,26 @@ pub fn init_with_model(model: Arc<EmbeddingModel>, commands: &[JCommandsList]) -
 
     info!("Embedding classifier ready with {} intents", intents.len());
 
-    CLASSIFIER.set(EmbeddingClassifierState { model, intents })
+    CLASSIFIER.set(EmbeddingClassifierState { model, intents: RwLock::new(intents) })
         .map_err(|_| "Classifier already set".to_string())?;
 
+    Ok(())
+}
+
+// rebuild intent vectors from a new command list (after a reload)
+pub fn retrain(commands: &[JCommandsList]) -> Result<(), String> {
+    let state = CLASSIFIER.get().ok_or("Classifier not initialized")?;
+    let intents = build_intent_vectors(&state.model, commands)?;
+
+    if let Some(config_dir) = APP_CONFIG_DIR.get() {
+        if let Ok(json) = serde_json::to_string(&intents_to_cache(&intents)) {
+            let _ = fs::write(config_dir.join(CACHE_FILE), json);
+            let _ = fs::write(config_dir.join(HASH_FILE), crate::commands::commands_hash(commands));
+        }
+    }
+
+    info!("Embedding classifier rebuilt with {} intents", intents.len());
+    *state.intents.write() = intents;
     Ok(())
 }
 
@@ -130,6 +147,7 @@ fn build_intent_vectors(
 
 pub fn classify(text: &str) -> Result<(String, f64), String> {
     let state = CLASSIFIER.get().ok_or("Classifier not initialized")?;
+    let intents = state.intents.read();
     
     // only the embedding model needs locking, intents are read-only
     let embeddings = state.model.embedding.lock().embed(vec![text], None)
@@ -150,7 +168,7 @@ pub fn classify(text: &str) -> Result<(String, f64), String> {
     let mut best_idx: usize = 0;
     let mut best_score: f64 = -1.0;
 
-    for (i, intent) in state.intents.iter().enumerate() {
+    for (i, intent) in intents.iter().enumerate() {
         let score: f64 = query_vec.iter()
             .zip(intent.vector.iter())
             .map(|(a, b)| (*a as f64) * (*b as f64))
@@ -162,7 +180,7 @@ pub fn classify(text: &str) -> Result<(String, f64), String> {
         }
     }
 
-    let best_id = state.intents[best_idx].id.clone();
+    let best_id = intents[best_idx].id.clone();
     debug!("Embedding classify: '{}' -> '{}' ({:.2}%)", text, best_id, best_score * 100.0);
 
     Ok((best_id, best_score))

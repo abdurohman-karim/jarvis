@@ -40,6 +40,15 @@ pub async fn init(commands: &Vec<JCommandsList>) -> Result<(), String> {
     Ok(())
 }
 
+// rebuild the classifier from a new command list (after a reload)
+pub async fn retrain(commands: &[JCommandsList]) -> Result<(), String> {
+    match BACKEND.get().map(|s| s.as_str()) {
+        Some("none") | None => Ok(()),
+        Some("intent-classifier") => intentclassifier::retrain(commands).await,
+        Some(_) => embeddingclassifier::retrain(commands),
+    }
+}
+
 pub async fn classify(text: &str) -> Option<(String, f64)> {
     match BACKEND.get()?.as_str() {
         "none" => None,

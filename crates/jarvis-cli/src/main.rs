@@ -1,6 +1,6 @@
 use std::io::{self, Write};
 
-use jarvis_core::{COMMANDS_LIST, DB, JCommandsList, commands, config, db, intent};
+use jarvis_core::{DB, JCommandsList, commands, config, db, intent};
 
 fn print_help() {
     println!("
@@ -121,11 +121,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Vec::new()
         }
     };
-    COMMANDS_LIST.set(cmds).expect("Failed to set commands list");
+    commands::set_list(cmds);
     
     // init intent classifier
     println!("[*] Initializing intent classifier...");
-    match intent::init(COMMANDS_LIST.get().unwrap()).await {
+    match intent::init(&commands::list()).await {
         Ok(_) => println!("    Intent classifier ready"),
         Err(e) => println!("    Warning: {}", e),
     }
@@ -162,10 +162,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 break;
             }
             "help" | "h" | "?" => print_help(),
-            "list" | "ls" => list_commands(COMMANDS_LIST.get().unwrap()),
-            "phrases" => list_phrases(COMMANDS_LIST.get().unwrap()),
+            "list" | "ls" => list_commands(&commands::list()),
+            "phrases" => list_phrases(&commands::list()),
             "hash" => {
-                let hash = commands::commands_hash(COMMANDS_LIST.get().unwrap());
+                let hash = commands::commands_hash(&commands::list());
                 println!("  Commands hash: {}", hash);
             }
             "settings" => {
@@ -186,7 +186,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if arg.is_empty() {
                     println!("  Usage: execute <text>");
                 } else {
-                    execute_text(COMMANDS_LIST.get().unwrap(), arg).await;
+                    execute_text(&commands::list(), arg).await;
                 }
             }
             "reload" => {

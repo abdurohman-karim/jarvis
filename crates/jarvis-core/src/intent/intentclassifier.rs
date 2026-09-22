@@ -57,6 +57,23 @@ pub async fn init(commands: &[JCommandsList]) -> Result<(), String> {
     Ok(())
 }
 
+pub async fn retrain(commands: &[JCommandsList]) -> Result<(), String> {
+    let model = MODEL.get().ok_or("IntentClassifier not initialized")?;
+
+    model.classifier.clear_training_data().await
+        .map_err(|e| format!("Failed to clear training data: {}", e))?;
+    train_classifier(&model.classifier, commands).await?;
+
+    if let Some(config_dir) = APP_CONFIG_DIR.get() {
+        if let Ok(export) = model.classifier.export_training_data().await {
+            let _ = fs::write(config_dir.join(TRAINING_CACHE_FILE), export);
+            let _ = fs::write(config_dir.join(COMMANDS_HASH_FILE), commands::commands_hash(commands));
+        }
+    }
+
+    Ok(())
+}
+
 pub async fn classify(text: &str) -> Result<IntentPrediction, IntentError> {
     let model = MODEL.get().expect("IntentClassifier not initialized");
     model.classifier.predict_intent(text).await
