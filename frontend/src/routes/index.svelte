@@ -61,13 +61,16 @@
     async function stop() {
         stopping = true
         try {
-            await stopJarvisApp()
-            setTimeout(async () => {
+            stopJarvisApp()
+            // the process plays a goodbye sound before exiting, so poll for a while
+            for (let i = 0; i < 15; i++) {
+                await new Promise(r => setTimeout(r, 1000))
                 await updateJarvisStats()
-                stopping = false
-            }, 1500)
+                if (!$isJarvisRunning) break
+            }
         } catch (err) {
             console.error("Failed to stop jarvis-app:", err)
+        } finally {
             stopping = false
         }
     }

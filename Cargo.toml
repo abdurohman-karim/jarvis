@@ -9,9 +9,7 @@ resolver = "2"
 
 [workspace.package]
 version = "0.1.0"
-authors = ["Abraham Tugalov"]
 license = "GPL-3.0-only"
-repository = "https://github.com/Priler/jarvis"
 edition = "2021"
 
 [workspace.dependencies]

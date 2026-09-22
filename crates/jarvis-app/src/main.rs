@@ -159,6 +159,10 @@ fn main() -> Result<(), String> {
     let app_rt = Arc::clone(&rt);
     std::thread::spawn(move || {
         let _ = app::start(text_cmd_rx, &app_rt);
+        // the main thread is blocked in the tray event loop, so once the
+        // assistant loop ends (e.g. "stop" from the GUI) end the process here
+        info!("Assistant loop finished, exiting.");
+        std::process::exit(0);
     });
 
     tray::init_blocking(settings);
