@@ -62,6 +62,8 @@ pub fn init_dirs() -> Result<(), String> {
    Defaults.
 */
 pub const DEFAULT_AUDIO_TYPE: AudioType = AudioType::Kira;
+// @TODO. Switch to Rustpotter once its detection quality is verified on real voices
+// (it was broken until the frame re-chunking fix in listener/rustpotter.rs, so nobody could).
 pub const DEFAULT_WAKE_WORD_ENGINE: WakeWordEngine = WakeWordEngine::Vosk;
 pub const DEFAULT_SPEECH_TO_TEXT_ENGINE: SpeechToTextEngine = SpeechToTextEngine::Vosk;
 

@@ -7,8 +7,16 @@ use crate::{config, APP_DIR};
 
 const RUSTPOTTER_PATH: &str = "resources/rustpotter";
 
-// store rustpotter instance
-static RUSTPOTTER: OnceCell<Mutex<Rustpotter>> = OnceCell::new();
+// Rustpotter only accepts frames of exactly `get_samples_per_frame()` samples (30 ms = 480 at
+// 16 kHz) and silently returns None otherwise, while the recorder delivers 512-sample frames.
+// Incoming audio is therefore re-chunked through this accumulator.
+struct Detector {
+    rustpotter: Rustpotter,
+    pending: Vec<i16>,
+    samples_per_frame: usize,
+}
+
+static DETECTOR: OnceCell<Mutex<Detector>> = OnceCell::new();
 
 pub fn init() -> Result<(), ()> {
     let rustpotter_config = config::RUSTPOTTER_DEFAULT_CONFIG;
@@ -17,15 +25,16 @@ pub fn init() -> Result<(), ()> {
     match Rustpotter::new(&rustpotter_config) {
         Ok(mut rinstance) => {
             // success
-            // wake word files list
+            // wake word files list: the default recording plus community recordings of
+            // other voices, which improves recall for speakers unlike the default one
             // @TODO. Make it configurable via GUI for custom user voice.
-            let rustpotter_wake_word_files: [&str; 1] = [
+            let rustpotter_wake_word_files: [&str; 6] = [
                 "jarvis-default.rpw",
-                // "jarvis-community-1.rpw",
-                // "jarvis-community-2.rpw",
-                // "jarvis-community-3.rpw",
-                // "jarvis-community-4.rpw",
-                // "jarvis-community-5.rpw",
+                "jarvis-community-1.rpw",
+                "jarvis-community-2.rpw",
+                "jarvis-community-3.rpw",
+                "jarvis-community-4.rpw",
+                "jarvis-community-5.rpw",
             ];
 
             // load wake word files (resolved against the app directory, cwd is arbitrary
@@ -45,8 +54,15 @@ pub fn init() -> Result<(), ()> {
                 return Err(());
             }
 
+            let samples_per_frame = rinstance.get_samples_per_frame();
+            info!("Rustpotter: {} wakeword file(s) loaded, {} samples per frame", loaded, samples_per_frame);
+
             // store
-            let _ = RUSTPOTTER.set(Mutex::new(rinstance));
+            let _ = DETECTOR.set(Mutex::new(Detector {
+                rustpotter: rinstance,
+                pending: Vec::with_capacity(samples_per_frame * 2),
+                samples_per_frame,
+            }));
         }
         Err(msg) => {
             error!("Rustpotter failed to initialize.\nError details: {}", msg);
@@ -59,22 +75,31 @@ pub fn init() -> Result<(), ()> {
 }
 
 pub fn data_callback(frame_buffer: &[i16]) -> Option<i32> {
-    let mut lock = RUSTPOTTER.get().unwrap().lock();
-    let rustpotter = lock.as_mut().unwrap();
-    // let detection = rustpotter.process_samples(frame_buffer.to_vec()); // @TODO. Temp crutch. Fix optimization issue, frame_buffer should not be copied to a new vector!
-    let detection = rustpotter.process_samples(frame_buffer);
+    let mut lock = DETECTOR.get()?.lock().ok()?;
+    let det = &mut *lock;
 
-    // info!("Ruspotter data callback");
+    det.pending.extend_from_slice(frame_buffer);
 
-    if let Some(detection) = detection {
-        if detection.score > config::RUSPOTTER_MIN_SCORE {
-            info!("Rustpotter detection info:\n{:?}", detection);
-
-            return Some(0);
-        } else {
-            info!("Rustpotter detection info:\n{:?}", detection)
+    let mut result = None;
+    while det.pending.len() >= det.samples_per_frame {
+        let chunk: Vec<i16> = det.pending.drain(..det.samples_per_frame).collect();
+        if let Some(detection) = det.rustpotter.process_samples(&chunk) {
+            if handle_detection(&detection) {
+                result = Some(0);
+            }
         }
     }
 
-    None
+    result
+}
+
+// logs the detection and tells whether it passes our score threshold
+fn handle_detection(detection: &rustpotter::RustpotterDetection) -> bool {
+    let accepted = detection.score > config::RUSPOTTER_MIN_SCORE;
+    info!(
+        "Rustpotter: '{}' score {:.2} avg {:.2} (min {:.2}) - {}",
+        detection.name, detection.score, detection.avg_score, config::RUSPOTTER_MIN_SCORE,
+        if accepted { "ACCEPTED" } else { "rejected" }
+    );
+    accepted
 }
