@@ -351,6 +351,55 @@ mod tests {
     use super::*;
 
     // every command pack shipped in resources/commands must parse
+    fn packs() -> Vec<JCommandsList> {
+        let toml = r#"
+            [[commands]]
+            id = "browser_open"
+            type = "lua"
+            phrases.en = ["open browser", "launch browser"]
+            phrases.ru = ["открой браузер"]
+
+            [[commands]]
+            id = "counter"
+            type = "lua"
+            phrases.en = ["counter", "count"]
+            phrases.ru = ["счётчик"]
+        "#;
+        let list: JCommandsList = toml::from_str(toml).unwrap();
+        vec![JCommandsList { path: PathBuf::from("/tmp/test"), commands: list.commands }]
+    }
+
+    // i18n is not initialized in unit tests, so matching runs against DEFAULT_LANGUAGE ("en")
+    #[test]
+    fn fetch_command_exact_and_fuzzy() {
+        let packs = packs();
+
+        let (_, cmd) = fetch_command("open browser", &packs).expect("exact phrase");
+        assert_eq!(cmd.id, "browser_open");
+
+        // case / whitespace insensitive
+        let (_, cmd) = fetch_command("  Launch Browser ", &packs).expect("normalized phrase");
+        assert_eq!(cmd.id, "browser_open");
+
+        // small recognition error still matches
+        let (_, cmd) = fetch_command("open brouser", &packs).expect("fuzzy phrase");
+        assert_eq!(cmd.id, "browser_open");
+    }
+
+    #[test]
+    fn fetch_command_rejects_unrelated_text() {
+        let packs = packs();
+        assert!(fetch_command("what time is it", &packs).is_none());
+        assert!(fetch_command("", &packs).is_none());
+    }
+
+    #[test]
+    fn get_command_by_id_works() {
+        let packs = packs();
+        assert!(get_command_by_id(&packs, "counter").is_some());
+        assert!(get_command_by_id(&packs, "nope").is_none());
+    }
+
     #[test]
     fn shipped_command_packs_parse() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources/commands");
