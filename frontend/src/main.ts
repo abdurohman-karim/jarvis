@@ -1,6 +1,5 @@
 // ### STYLES
 import "./css/main.scss"
-import "./css/styles.scss"
 
 // ### APP
 import App from "./App.svelte"

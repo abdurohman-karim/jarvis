@@ -40,11 +40,6 @@ export const assistantVoice = writable("")
 
 // ### APP INFO
 export const appInfo = writable({
-    tgOfficialLink: "",
-    feedbackLink: "",
-    repositoryLink: "",
-    boostySupportLink: "",
-    patreonSupportLink: "",
     logFilePath: ""
 })
 
@@ -60,23 +55,8 @@ export async function loadVoiceSetting() {
 
 export async function loadAppInfo() {
     try {
-        const [tg, feedback, repo, boosty, patreon, logPath] = await Promise.all([
-            invoke<string>("get_tg_official_link"),
-            invoke<string>("get_feedback_link"),
-            invoke<string>("get_repository_link"),
-            invoke<string>("get_boosty_link"),
-            invoke<string>("get_patreon_link"),
-            invoke<string>("get_log_file_path")
-        ])
-
-        appInfo.set({
-            tgOfficialLink: tg,
-            feedbackLink: feedback,
-            repositoryLink: repo,
-            boostySupportLink: boosty,
-            patreonSupportLink: patreon,
-            logFilePath: logPath
-        })
+        const logPath = await invoke<string>("get_log_file_path")
+        appInfo.set({ logFilePath: logPath })
     } catch (err) {
         console.error("failed to load app info:", err)
     }

@@ -73,14 +73,6 @@ python3 post_build.py --sync
 
 On first launch macOS will ask for microphone access - allow it, otherwise the wake-word never triggers.
 
-## Author
-
-Abraham Tugalov
-
-## Python version?
-Old version of Jarvis was built with Python.<br>
-The last Python version commit can be found [here](https://github.com/Priler/jarvis/tree/943efbfbdb8aeb5889fa5e2dc7348ca4ea0b81df).
-
 ## License
 
 [Attribution-NonCommercial-ShareAlike 4.0 International](https://creativecommons.org/licenses/by-nc-sa/4.0/)<br>

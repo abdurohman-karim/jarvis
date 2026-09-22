@@ -1,11 +1,26 @@
 <script lang="ts">
-    import { Container } from "@svelteuidev/core"
-    import Header from "@/components/Header.svelte"
+    import Sidebar from "@/components/Sidebar.svelte"
 </script>
 
-<Container fluid id="wrapper">
-    <Header />
-    <main>
+<div class="shell">
+    <Sidebar />
+    <main class="content">
         <slot></slot>
     </main>
-</Container>
+</div>
+
+<style lang="scss">
+    .shell {
+        display: flex;
+        height: 100vh;
+        overflow: hidden;
+    }
+
+    .content {
+        flex: 1;
+        min-width: 0;
+        height: 100%;
+        overflow-y: auto;
+        padding: var(--content-padding);
+    }
+</style>

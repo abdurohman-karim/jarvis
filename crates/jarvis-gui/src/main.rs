@@ -58,12 +58,6 @@ fn main() {
 
             // etc
             tauri_commands::get_app_version,
-            tauri_commands::get_author_name,
-            tauri_commands::get_repository_link,
-            tauri_commands::get_tg_official_link,
-            tauri_commands::get_boosty_link,
-            tauri_commands::get_patreon_link,
-            tauri_commands::get_feedback_link,
 
             // fs
             tauri_commands::get_log_file_path,

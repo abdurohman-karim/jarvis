@@ -15,8 +15,6 @@ tray-vad = Voice Activity Detection
 tray-gain-normalizer = Gain Normalizer
 
 # ### HEADER
-header-commands = COMMANDS
-header-settings = SETTINGS
 
 # ### SEARCH
 search-placeholder = Enter a command manually or say «Jarvis» ...
@@ -41,11 +39,6 @@ stats-system-default = System Default
 stats-not-selected = Not selected
 stats-loading = Loading...
 
-# ### FOOTER
-footer-author = Project author
-footer-telegram = Our Telegram channel
-footer-github = Github repository
-footer-support = Support the project on
 
 # ### SETTINGS
 settings-title = Settings
@@ -81,17 +74,9 @@ settings-back = Back
 settings-enabled = Enabled
 settings-disabled = Disabled
 
-# settings - beta notice
-settings-beta-title = BETA version!
-settings-beta-desc = Some features may not work correctly.
-settings-beta-feedback = Report all bugs to
-settings-beta-bot = our Telegram bot
-settings-open-logs = Open logs folder
 
 # settings - picovoice
-settings-attention = Attention!
 settings-picovoice-warning = This neural network doesn't work for everyone!
-settings-picovoice-waiting = We are waiting for an official patch from the developers.
 settings-picovoice-key-desc = Enter your Picovoice key here. It is issued for free upon registration at
 settings-picovoice-key = Picovoice Key
 
@@ -112,10 +97,6 @@ settings-openai-not-supported = ChatGPT is not currently supported. It will be a
 commands-title = Commands
 commands-search = Search commands...
 commands-count = { $count } commands
-commands-wip-title = [404] This section is under development!
-commands-wip-desc = Here will be a list of commands + full-featured command editor.
-commands-wip-follow = Follow updates in
-commands-wip-channel = our Telegram channel
 
 # ### ERRORS
 error-generic = An error occurred
@@ -141,3 +122,23 @@ settings-gliner-models-hint = No GLiNER models found.
 search-error-not-running = Assistant is not running
 search-error-failed = Failed to execute command
 settings-no-voices = No voices found
+
+# ### UI (redesign)
+nav-assistant = Assistant
+nav-commands = Commands
+nav-settings = Settings
+assistant-subtitle = Voice control for your computer
+assistant-ready = Ready
+assistant-ready-hint = Say “Jarvis” or type a command below.
+assistant-last-heard = Last recognized phrase
+status-offline = Not running
+status-connecting = Connecting…
+btn-stop = Stop
+btn-stopping = Stopping…
+settings-subtitle = Voice, devices and neural networks
+settings-diagnostics = Diagnostics
+settings-logs = Logs
+settings-open-logs = Open logs folder
+commands-empty-title = No commands found
+commands-empty-desc = Put command packs into the resources/commands folder.
+commands-no-results = Nothing found

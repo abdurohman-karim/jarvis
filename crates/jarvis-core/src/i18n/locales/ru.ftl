@@ -15,8 +15,6 @@ tray-vad = Детекция голоса (VAD)
 tray-gain-normalizer = Нормализация громкости
 
 # HEADER
-header-commands = КОМАНДЫ
-header-settings = НАСТРОЙКИ
 
 # SEARCH
 search-placeholder = Введите команду вручную или произнесите «Джарвис» ...
@@ -41,11 +39,6 @@ stats-system-default = Системный
 stats-not-selected = Не выбран
 stats-loading = Загрузка...
 
-# FOOTER
-footer-author = Автор проекта
-footer-telegram = Наш телеграм канал
-footer-github = Github репозиторий проекта
-footer-support = Поддержать проект на
 
 # SETTINGS
 settings-title = Настройки
@@ -81,17 +74,9 @@ settings-back = Назад
 settings-enabled = Включено
 settings-disabled = Отключено
 
-# settings - beta notice
-settings-beta-title = БЕТА версия!
-settings-beta-desc = Часть функций может работать некорректно.
-settings-beta-feedback = Сообщайте обо всех найденных багах в
-settings-beta-bot = наш телеграм бот
-settings-open-logs = Открыть папку с логами
 
 # settings - picovoice
-settings-attention = Внимание!
 settings-picovoice-warning = Эта нейросеть работает не у всех!
-settings-picovoice-waiting = Мы ждем официального патча от разработчиков.
 settings-picovoice-key-desc = Введите сюда свой ключ Picovoice. Он выдается бесплатно при регистрации в
 settings-picovoice-key = Ключ Picovoice
 
@@ -112,10 +97,6 @@ settings-openai-not-supported = В данный момент ChatGPT не под
 commands-title = Команды
 commands-search = Поиск команд...
 commands-count = { $count } команд
-commands-wip-title = [404] Этот раздел еще находится в разработке!
-commands-wip-desc = Тут будет список команд + полноценный редактор команд.
-commands-wip-follow = Следите за обновлениями в
-commands-wip-channel = нашем телеграм канале
 
 # ERRORS
 error-generic = Произошла ошибка
@@ -141,3 +122,23 @@ settings-gliner-models-hint = Модели GLiNER не найдены.
 search-error-not-running = Ассистент не запущен
 search-error-failed = Не удалось выполнить команду
 settings-no-voices = Голоса не найдены
+
+# ### UI (redesign)
+nav-assistant = Ассистент
+nav-commands = Команды
+nav-settings = Настройки
+assistant-subtitle = Голосовое управление компьютером
+assistant-ready = Готов к работе
+assistant-ready-hint = Скажите «Джарвис» или введите команду ниже.
+assistant-last-heard = Последняя распознанная фраза
+status-offline = Не запущен
+status-connecting = Подключение…
+btn-stop = Остановить
+btn-stopping = Остановка…
+settings-subtitle = Голос, устройства и нейросети
+settings-diagnostics = Диагностика
+settings-logs = Логи
+settings-open-logs = Открыть папку с логами
+commands-empty-title = Команды не найдены
+commands-empty-desc = Поместите пакеты команд в папку resources/commands.
+commands-no-results = Ничего не найдено

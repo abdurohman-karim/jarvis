@@ -2,34 +2,35 @@
     import { onMount, onDestroy } from "svelte"
     import { invoke } from "@tauri-apps/api/core"
 
-    import SearchBar from "@/components/elements/SearchBar.svelte"
-    import ArcReactor from "@/components/elements/ArcReactor.svelte"
-    import HDivider from "@/components/elements/HDivider.svelte"
-    import Stats from "@/components/elements/Stats.svelte"
-    import Footer from "@/components/Footer.svelte"
-    
+    import StatusOrb from "@/components/StatusOrb.svelte"
+    import CommandInput from "@/components/CommandInput.svelte"
+    import StatsGrid from "@/components/StatsGrid.svelte"
+    import Button from "@/components/ui/Button.svelte"
+    import Icon from "@/components/ui/Icon.svelte"
+
     import {
         isJarvisRunning,
+        jarvisState,
+        lastRecognizedText,
         updateJarvisStats,
         enableIpc,
         disableIpc,
+        stopJarvisApp,
         translate,
         translations
     } from "@/stores"
 
     $: t = (key: string) => translate($translations, key)
 
-    let processRunning = false
     let launching = false
-    let wasRunning = false  // track previous state
+    let stopping = false
+    let wasRunning = false
 
     isJarvisRunning.subscribe((value) => {
-        processRunning = value
         if (value) {
             enableIpc()
             wasRunning = true
         } else if (wasRunning) {
-            // only disable if it was running before
             disableIpc()
             wasRunning = false
         }
@@ -43,7 +44,7 @@
         disableIpc()
     })
 
-    async function runAssistant() {
+    async function start() {
         launching = true
         try {
             await invoke("run_jarvis_app")
@@ -56,37 +57,109 @@
             launching = false
         }
     }
+
+    async function stop() {
+        stopping = true
+        try {
+            await stopJarvisApp()
+            setTimeout(async () => {
+                await updateJarvisStats()
+                stopping = false
+            }, 1500)
+        } catch (err) {
+            console.error("Failed to stop jarvis-app:", err)
+            stopping = false
+        }
+    }
+
+    $: statusKey = !$isJarvisRunning
+        ? "status-offline"
+        : { disconnected: "status-connecting", idle: "status-standby", listening: "status-listening", processing: "status-processing" }[$jarvisState]
+
+    $: statusTone = !$isJarvisRunning
+        ? ""
+        : $jarvisState === "disconnected" ? "warning"
+        : $jarvisState === "idle" ? "success"
+        : "accent"
 </script>
 
-<div class="app-container assist-page">
-
-    <div class="search search-section">
-        <HDivider />
-        <SearchBar />
-    </div>
-
-    <div class="reactor-section">
-        <div class="reactor-wrapper" class:dimmed={!processRunning}>
-            <ArcReactor />
+<div class="page">
+    <header class="page-header">
+        <div>
+            <h1>{t("nav-assistant")}</h1>
+            <p class="page-subtitle">{t("assistant-subtitle")}</p>
         </div>
-        
-        {#if !processRunning}
-            <div class="offline-badge">
-                <span class="offline-icon">⚠</span>
-                <span class="offline-text">{t('assistant-not-running')}</span>
-                <small>{t('assistant-offline-hint')}</small>
-            </div>
-            <button 
-                class="start-button" 
-                on:click={runAssistant}
-                disabled={launching}
-            >
-                {launching ? t('btn-starting') : t('btn-start')}
-            </button>
-        {/if}
-    </div>
+        <span class="pill {statusTone}">
+            <span class="dot"></span>
+            {t(statusKey)}
+        </span>
+    </header>
 
-    <HDivider noMargin />
-    <Stats />
-    <Footer />
+    <section class="hero">
+        <StatusOrb />
+
+        <div class="hero-text">
+            {#if !$isJarvisRunning}
+                <p class="hero-title">{t("assistant-not-running")}</p>
+                <p class="hero-hint">{t("assistant-offline-hint")}</p>
+            {:else if $lastRecognizedText}
+                <p class="hero-title">«{$lastRecognizedText}»</p>
+                <p class="hero-hint">{t("assistant-last-heard")}</p>
+            {:else}
+                <p class="hero-title">{t("assistant-ready")}</p>
+                <p class="hero-hint">{t("assistant-ready-hint")}</p>
+            {/if}
+        </div>
+
+        <div class="hero-actions">
+            {#if !$isJarvisRunning}
+                <Button variant="primary" size="lg" on:click={start} disabled={launching}>
+                    <Icon name="play" size={15} />
+                    {launching ? t("btn-starting") : t("btn-start")}
+                </Button>
+            {:else}
+                <Button variant="ghost" size="sm" on:click={stop} disabled={stopping}>
+                    <Icon name="square" size={13} />
+                    {stopping ? t("btn-stopping") : t("btn-stop")}
+                </Button>
+            {/if}
+        </div>
+    </section>
+
+    <CommandInput />
+
+    <StatsGrid />
 </div>
+
+<style lang="scss">
+    .hero {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+        padding: 10px 0 4px;
+    }
+
+    .hero-text {
+        text-align: center;
+        max-width: 360px;
+    }
+
+    .hero-title {
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text);
+    }
+
+    .hero-hint {
+        margin-top: 2px;
+        font-size: 12.5px;
+        color: var(--text-muted);
+    }
+
+    .hero-actions {
+        min-height: 36px;
+        display: flex;
+        align-items: center;
+    }
+</style>
