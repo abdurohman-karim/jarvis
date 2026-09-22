@@ -65,16 +65,18 @@ fn main_loop(text_cmd_rx: Receiver<String>, rt: &tokio::runtime::Runtime) -> Res
         
         match vad_state {
             VadState::WaitingForVoice => {
-                // always buffer audio
-                audio_buffer.push(&frame_buffer);
+                // always buffer (processed) audio
+                audio_buffer.push(&processed.samples);
                 
                 if processed.is_voice {
-                    // voice started! flush buffer to Vosk
+                    // voice started! flush buffer to the wake word engine
                     info!("VAD: Voice started, flushing {} buffered frames", audio_buffer.len());
                     
                     for buffered_frame in audio_buffer.drain_all() {
                         listener::data_callback(&buffered_frame);
                     }
+                    // the current frame was never buffered
+                    listener::data_callback(&processed.samples);
                     
                     vad_state = VadState::VoiceActive;
                     silence_frames = 0;
@@ -83,10 +85,10 @@ fn main_loop(text_cmd_rx: Receiver<String>, rt: &tokio::runtime::Runtime) -> Res
             
             VadState::VoiceActive => {
                 // dual-feed: speech recognizer gets frames in parallel with wake word detector
-                let _ = stt::recognize(&frame_buffer, false);
+                let _ = stt::recognize(&processed.samples, false);
 
                 // feed to wake word detector
-                if let Some(_keyword_index) = listener::data_callback(&frame_buffer) {
+                if let Some(_keyword_index) = listener::data_callback(&processed.samples) {
                     // WAKE WORD DETECTED!
                     info!("Wake word activated!");
                     ipc::send(IpcEvent::WakeWordDetected);
@@ -98,8 +100,8 @@ fn main_loop(text_cmd_rx: Receiver<String>, rt: &tokio::runtime::Runtime) -> Res
                     let sniff_frames = ((0.3 * sample_rate as f32) / frame_length as f32) as u32;
                     for _ in 0..sniff_frames {
                         recorder::read_microphone(&mut frame_buffer);
-                        audio_processing::process(&frame_buffer);
-                        stt::recognize(&frame_buffer, false);
+                        let sniffed = audio_processing::process(&frame_buffer);
+                        stt::recognize(&sniffed.samples, false);
                     }
 
                     ipc::send(IpcEvent::Listening);
@@ -174,7 +176,7 @@ fn recognize_command(
         
         match vad_state {
             VadState::WaitingForVoice => {
-                audio_buffer.push(frame_buffer);
+                audio_buffer.push(&processed.samples);
                 
                 if processed.is_voice {
                     // flush buffer to STT
@@ -195,7 +197,7 @@ fn recognize_command(
             
             VadState::VoiceActive => {
                 // feed to STT
-                if let Some(mut recognized_voice) = stt::recognize(frame_buffer, false) {
+                if let Some(mut recognized_voice) = stt::recognize(&processed.samples, false) {
                     info!("Recognized voice: {}", recognized_voice);
                     
                     ipc::send(IpcEvent::SpeechRecognized {

@@ -317,3 +317,32 @@ fn execute_lua_command(
         }
     }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // every command pack shipped in resources/commands must parse
+    #[test]
+    fn shipped_command_packs_parse() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources/commands");
+        let mut checked = 0;
+
+        for entry in fs::read_dir(&root).expect("resources/commands missing").flatten() {
+            let toml_file = entry.path().join("command.toml");
+            if !toml_file.exists() {
+                continue;
+            }
+            let content = fs::read_to_string(&toml_file).unwrap();
+            let parsed: Result<JCommandsList, _> = toml::from_str(&content);
+            assert!(parsed.is_ok(), "{}: {}", toml_file.display(), parsed.err().unwrap());
+
+            for cmd in parsed.unwrap().commands {
+                assert!(!cmd.id.is_empty(), "{}: command without id", toml_file.display());
+                assert!(!cmd.phrases.is_empty(), "{}: '{}' has no phrases", toml_file.display(), cmd.id);
+            }
+            checked += 1;
+        }
+
+        assert!(checked > 0, "no command packs found in {}", root.display());
+    }
+}

@@ -3,7 +3,9 @@ use std::sync::Mutex;
 use once_cell::sync::OnceCell;
 use rustpotter::Rustpotter;
 
-use crate::config;
+use crate::{config, APP_DIR};
+
+const RUSTPOTTER_PATH: &str = "resources/rustpotter";
 
 // store rustpotter instance
 static RUSTPOTTER: OnceCell<Mutex<Rustpotter>> = OnceCell::new();
@@ -18,20 +20,29 @@ pub fn init() -> Result<(), ()> {
             // wake word files list
             // @TODO. Make it configurable via GUI for custom user voice.
             let rustpotter_wake_word_files: [&str; 1] = [
-                "resources/rustpotter/jarvis-default.rpw",
-                // "rustpotter/jarvis-community-1.rpw",
-                // "rustpotter/jarvis-community-2.rpw",
-                // "rustpotter/jarvis-community-3.rpw",
-                // "rustpotter/jarvis-community-4.rpw",
-                // "rustpotter/jarvis-community-5.rpw",
+                "jarvis-default.rpw",
+                // "jarvis-community-1.rpw",
+                // "jarvis-community-2.rpw",
+                // "jarvis-community-3.rpw",
+                // "jarvis-community-4.rpw",
+                // "jarvis-community-5.rpw",
             ];
 
-            // load wake word files
+            // load wake word files (resolved against the app directory, cwd is arbitrary
+            // when launched from a bundle or the GUI)
+            let mut loaded = 0;
             for rpw in rustpotter_wake_word_files {
-                // @TODO: Change wakeword key to something else?
-                if let Err(e) = rinstance.add_wakeword_from_file(rpw, rpw) {
-                    error!("Failed to load wakeword file '{}': {}", rpw, e);
+                let path = APP_DIR.join(RUSTPOTTER_PATH).join(rpw);
+                let path_str = path.to_string_lossy();
+                match rinstance.add_wakeword_from_file(rpw, &path_str) {
+                    Ok(_) => loaded += 1,
+                    Err(e) => error!("Failed to load wakeword file '{}': {}", path_str, e),
                 }
+            }
+
+            if loaded == 0 {
+                error!("Rustpotter: no wakeword files loaded, wake word detection will not work.");
+                return Err(());
             }
 
             // store
