@@ -20,6 +20,8 @@ pub struct VoskModelInfo {
     pub language: String,   // extracted from name: "ru"
     pub size: String,       // "small", "large", etc.
     pub bundled: bool,      // shipped with the app (not deletable) vs. downloaded by the user
+    // whether the model can be restricted to a word list, which the wake word needs
+    pub supports_grammar: bool,
 }
 
 // A model the user can download. Sizes are the zip sizes published on alphacephei.com.
@@ -55,11 +57,11 @@ macro_rules! model {
 //   vosk-model-small-ru       0%        18%            67%
 //   vosk-model-ru-0.42        3%        12%            27%
 //
-// The large model also recognized the wake word in noise 4 times out of 8 where the small
-// one never did, which is why it is the recommended one despite its size.
+// Large models have a static graph and cannot be restricted to a word list, so they cannot
+// back the wake word - a small model stays installed alongside for that (see stt::vosk).
 pub const CATALOG: &[VoskCatalogEntry] = &[
     model!("vosk-model-small-ru-0.22", "ru", "Small and fast; struggles in a noisy room", 45, false),
-    model!("vosk-model-ru-0.42", "ru", "Large: ~2.5x fewer errors in noise, recognizes the wake word better", 1800, true),
+    model!("vosk-model-ru-0.42", "ru", "Large: ~2.5x fewer errors in noise (keeps using a small model for the wake word)", 1800, true),
     model!("vosk-model-small-en-us-0.15", "en", "Small and fast; struggles in a noisy room", 40, false),
     model!("vosk-model-en-us-0.22-lgraph", "en", "Medium, dynamic grammar", 128, true),
     model!("vosk-model-en-us-0.22", "en", "Large, best accuracy", 1800, false),
@@ -126,10 +128,21 @@ fn scan_dir(models_dir: &Path, bundled: bool) -> Vec<VoskModelInfo> {
 
         let (language, size) = parse_model_name(&name);
 
-        models.push(VoskModelInfo { name, path, language, size, bundled });
+        let supports_grammar = supports_grammar(&path);
+        models.push(VoskModelInfo { name, path, language, size, bundled, supports_grammar });
     }
 
     models
+}
+
+// Whether the model can be restricted to a word list (Vosk calls this a dynamic graph).
+//
+// Only such models can back the wake word recognizer: with a static-graph model the word
+// list is silently ignored and the recognizer transcribes everything, which in a live
+// stream comes out as fragments ("рис", "арвис") that never match the wake phrase.
+// Dynamic models ship graph/Gr.fst next to HCLr.fst; static ones a single HCLG.fst.
+pub fn supports_grammar(model_path: &Path) -> bool {
+    model_path.join("graph").join("Gr.fst").is_file()
 }
 
 // Check if directory looks like a Vosk model
@@ -194,6 +207,21 @@ mod tests {
     fn model_name_parsing() {
         assert_eq!(parse_model_name("vosk-model-small-ru-0.22"), ("ru".into(), "small".into()));
         assert_eq!(parse_model_name("vosk-model-en-us-0.22-lgraph"), ("us".into(), "lgraph".into()));
+    }
+
+    // the bundled models must be able to back the wake word
+    #[test]
+    fn bundled_models_support_grammar() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources/vosk");
+        let Ok(entries) = fs::read_dir(&root) else { return };
+
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() && is_vosk_model(&path) {
+                assert!(supports_grammar(&path),
+                    "{} cannot be used for the wake word (no graph/Gr.fst)", path.display());
+            }
+        }
     }
 
     #[test]
