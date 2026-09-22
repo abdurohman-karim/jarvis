@@ -22,6 +22,12 @@ pub struct JCommand {
     
     #[serde(default)]
     pub description: String,
+
+    // Operating systems this command is available on ("windows", "macos", "linux").
+    // Empty = every platform. Lets a pack ship an `ahk` variant for Windows and a
+    // Lua variant of the same command id for the others.
+    #[serde(default)]
+    pub platforms: Vec<String>,
     
     // for "ahk" type
     #[serde(default)]
@@ -79,6 +85,7 @@ impl Clone for JCommand {
 
             cmd_type: self.cmd_type.clone(),
             description: self.description.clone(),
+            platforms: self.platforms.clone(),
 
             exe_path: self.exe_path.clone(),
             exe_args: self.exe_args.clone(),
@@ -176,4 +183,33 @@ pub struct SlotDefinition {
 pub enum SlotValue {
     Text(String),
     Number(f64),
+}
+
+impl JCommand {
+    // whether this command applies to the OS we are running on
+    pub fn supports_current_platform(&self) -> bool {
+        self.platforms.is_empty()
+            || self.platforms.iter().any(|p| p.eq_ignore_ascii_case(std::env::consts::OS))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn cmd(platforms: &[&str]) -> JCommand {
+        let toml = format!(
+            "id = \"x\"\ntype = \"lua\"\nplatforms = [{}]\n",
+            platforms.iter().map(|p| format!("\"{}\"", p)).collect::<Vec<_>>().join(", ")
+        );
+        toml::from_str(&toml).unwrap()
+    }
+
+    #[test]
+    fn platforms_filter() {
+        assert!(cmd(&[]).supports_current_platform(), "no platforms = everywhere");
+        assert!(cmd(&[std::env::consts::OS]).supports_current_platform());
+        assert!(cmd(&[&std::env::consts::OS.to_uppercase()]).supports_current_platform(), "case-insensitive");
+        assert!(!cmd(&["plan9"]).supports_current_platform());
+    }
 }

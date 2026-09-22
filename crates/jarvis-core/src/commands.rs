@@ -47,9 +47,19 @@ pub fn parse_commands() -> Result<Vec<JCommandsList>, String> {
             }
         };
 
+        let (supported, skipped): (Vec<JCommand>, Vec<JCommand>) = file.commands
+            .into_iter()
+            .partition(|c| c.supports_current_platform());
+        for cmd in &skipped {
+            debug!("Skipping command '{}' ({}): not for {}", cmd.id, toml_file.display(), std::env::consts::OS);
+        }
+        if supported.is_empty() {
+            continue;
+        }
+
         commands.push(JCommandsList {
             path: cmd_path,
-            commands: file.commands,
+            commands: supported,
         });
     }
 
@@ -355,10 +365,15 @@ mod tests {
             let parsed: Result<JCommandsList, _> = toml::from_str(&content);
             assert!(parsed.is_ok(), "{}: {}", toml_file.display(), parsed.err().unwrap());
 
-            for cmd in parsed.unwrap().commands {
+            let commands = parsed.unwrap().commands;
+            for cmd in &commands {
                 assert!(!cmd.id.is_empty(), "{}: command without id", toml_file.display());
                 assert!(!cmd.phrases.is_empty(), "{}: '{}' has no phrases", toml_file.display(), cmd.id);
             }
+            assert!(
+                commands.iter().any(|c| c.supports_current_platform()),
+                "{}: no command available on {}", toml_file.display(), std::env::consts::OS
+            );
             checked += 1;
         }
 
