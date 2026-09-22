@@ -1,0 +1,23 @@
+# Web search and asking the language model on purpose.
+
+[[commands]]
+id = "web_search"
+type = "lua"
+script = "search.lua"
+sandbox = "minimal"
+timeout = 8000
+sounds.ru = ["ok1", "ok2", "ok3"]
+sounds.en = ["ok1", "ok2"]
+phrases.ru = ["найди в интернете", "загугли", "поищи в интернете", "найди информацию о"]
+phrases.en = ["search the web for", "google", "look up"]
+phrases.ua = ["знайди в інтернеті", "пошукай в інтернеті"]
+
+[[commands]]
+id = "ask_ai"
+type = "lua"
+script = "ask.lua"
+sandbox = "minimal"
+timeout = 25000
+phrases.ru = ["спроси у нейросети", "спроси искусственный интеллект", "вопрос нейросети"]
+phrases.en = ["ask the ai", "ask the model"]
+phrases.ua = ["запитай у нейромережі"]

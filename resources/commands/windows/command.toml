@@ -1,0 +1,23 @@
+# Window management on Windows, through the bundled AutoHotkey executables.
+
+[[commands]]
+id = "minimize_windows"
+type = "ahk"
+platforms = ["windows"]
+exe_path = "ahk/Roll up windows.exe"
+sounds.ru = ["ok1", "ok2", "ok3"]
+sounds.en = ["ok1", "ok2"]
+phrases.ru = ["сверни все окна", "сверни окна"]
+phrases.en = ["minimize all windows", "minimize windows"]
+phrases.ua = ["згорни всі вікна"]
+
+[[commands]]
+id = "empty_trash"
+type = "ahk"
+platforms = ["windows"]
+exe_path = "ahk/Empty trash.exe"
+sounds.ru = ["ok1", "ok2", "ok3"]
+sounds.en = ["ok1", "ok2"]
+phrases.ru = ["очисти корзину", "опустоши корзину"]
+phrases.en = ["empty the recycle bin", "empty trash"]
+phrases.ua = ["очисти кошик"]

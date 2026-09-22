@@ -1,0 +1,25 @@
+# The system calculator.
+
+[[commands]]
+id = "open_calculator"
+type = "cli"
+platforms = ["windows"]
+cli_cmd = "calc"
+sounds.ru = ["ok1", "ok2", "ok3"]
+sounds.en = ["ok1", "ok2"]
+phrases.ru = ["открой калькулятор", "запусти калькулятор", "посчитай"]
+phrases.en = ["open the calculator", "launch calculator"]
+phrases.ua = ["відкрий калькулятор"]
+
+[[commands]]
+id = "open_calculator"
+type = "lua"
+platforms = ["macos"]
+script = "open.lua"
+sandbox = "minimal"
+timeout = 5000
+sounds.ru = ["ok1", "ok2", "ok3"]
+sounds.en = ["ok1", "ok2"]
+phrases.ru = ["открой калькулятор", "запусти калькулятор"]
+phrases.en = ["open the calculator", "launch calculator"]
+phrases.ua = ["відкрий калькулятор"]

@@ -1,0 +1,11 @@
+# Shuts the assistant down.
+
+[[commands]]
+id = "terminate"
+type = "terminate"
+sounds.ru = ["off"]
+sounds.en = ["off"]
+sounds.ua = ["off"]
+phrases.ru = ["выключись", "вырубись", "закройся", "отключись", "заверши свою работу", "на сегодня хватит", "выгрузи себя из памяти", "пора спать"]
+phrases.en = ["shut down", "turn yourself off", "close yourself", "that is enough for today", "goodbye jarvis"]
+phrases.ua = ["вимкнись", "закрийся", "відключись", "на сьогодні досить"]

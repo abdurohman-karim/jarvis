@@ -1,0 +1,11 @@
+# Stops command chaining: the assistant goes back to waiting for the wake word.
+
+[[commands]]
+id = "stop_chaining"
+type = "stop_chaining"
+sounds.ru = ["thanks", "ok1"]
+sounds.en = ["thanks", "ok1"]
+sounds.ua = ["thanks", "ok1"]
+phrases.ru = ["всё", "хватит", "отмена", "не слушай", "перестань слушать", "отдыхай", "на этом всё", "хватит слушать"]
+phrases.en = ["that is all", "enough", "cancel", "stop listening", "never mind"]
+phrases.ua = ["все", "досить", "скасувати", "не слухай", "перестань слухати"]

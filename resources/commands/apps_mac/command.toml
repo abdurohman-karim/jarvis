@@ -1,0 +1,79 @@
+# Opens common macOS applications.
+
+[[commands]]
+id = "open_terminal"
+type = "lua"
+platforms = ["macos"]
+script = "open_app.lua"
+sandbox = "minimal"
+timeout = 5000
+sounds.ru = ["ok1", "ok2", "ok3"]
+sounds.en = ["ok1", "ok2"]
+phrases.ru = ["открой терминал", "запусти терминал"]
+phrases.en = ["open terminal", "launch terminal"]
+phrases.ua = ["відкрий термінал"]
+
+[[commands]]
+id = "open_finder"
+type = "lua"
+platforms = ["macos"]
+script = "open_app.lua"
+sandbox = "minimal"
+timeout = 5000
+sounds.ru = ["ok1", "ok2", "ok3"]
+sounds.en = ["ok1", "ok2"]
+phrases.ru = ["открой финдер", "открой файлы", "покажи файлы"]
+phrases.en = ["open finder", "open files"]
+phrases.ua = ["відкрий файли"]
+
+[[commands]]
+id = "open_music"
+type = "lua"
+platforms = ["macos"]
+script = "open_app.lua"
+sandbox = "minimal"
+timeout = 5000
+sounds.ru = ["ok1", "ok2", "ok3"]
+sounds.en = ["ok1", "ok2"]
+phrases.ru = ["открой музыку", "запусти музыку"]
+phrases.en = ["open music", "launch music"]
+phrases.ua = ["відкрий музику"]
+
+[[commands]]
+id = "open_mail"
+type = "lua"
+platforms = ["macos"]
+script = "open_app.lua"
+sandbox = "minimal"
+timeout = 5000
+sounds.ru = ["ok1", "ok2", "ok3"]
+sounds.en = ["ok1", "ok2"]
+phrases.ru = ["открой почту", "проверь почту"]
+phrases.en = ["open mail", "check mail"]
+phrases.ua = ["відкрий пошту"]
+
+[[commands]]
+id = "open_calendar"
+type = "lua"
+platforms = ["macos"]
+script = "open_app.lua"
+sandbox = "minimal"
+timeout = 5000
+sounds.ru = ["ok1", "ok2", "ok3"]
+sounds.en = ["ok1", "ok2"]
+phrases.ru = ["открой календарь", "покажи календарь"]
+phrases.en = ["open calendar", "show calendar"]
+phrases.ua = ["відкрий календар"]
+
+[[commands]]
+id = "open_settings"
+type = "lua"
+platforms = ["macos"]
+script = "open_app.lua"
+sandbox = "minimal"
+timeout = 5000
+sounds.ru = ["ok1", "ok2", "ok3"]
+sounds.en = ["ok1", "ok2"]
+phrases.ru = ["открой настройки системы", "системные настройки"]
+phrases.en = ["open system settings", "system preferences"]
+phrases.ua = ["відкрий налаштування системи"]

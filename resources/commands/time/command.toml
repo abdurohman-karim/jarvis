@@ -1,0 +1,21 @@
+# Speaks the current time and date. Works everywhere: no external tools involved.
+
+[[commands]]
+id = "current_time"
+type = "lua"
+script = "time.lua"
+sandbox = "minimal"
+timeout = 5000
+phrases.ru = ["который час", "сколько времени", "текущее время", "скажи время"]
+phrases.en = ["what time is it", "tell me the time", "current time"]
+phrases.ua = ["котра година", "скільки часу", "поточний час"]
+
+[[commands]]
+id = "current_date"
+type = "lua"
+script = "date.lua"
+sandbox = "minimal"
+timeout = 5000
+phrases.ru = ["какое сегодня число", "какая сегодня дата", "скажи дату"]
+phrases.en = ["what is the date today", "what day is it", "tell me the date"]
+phrases.ua = ["яке сьогодні число", "яка сьогодні дата"]

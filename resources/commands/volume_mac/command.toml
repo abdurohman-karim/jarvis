@@ -1,0 +1,53 @@
+# System volume on macOS, through osascript.
+
+[[commands]]
+id = "volume_up"
+type = "lua"
+platforms = ["macos"]
+script = "volume.lua"
+sandbox = "full"
+timeout = 5000
+sounds.ru = ["ok1", "ok2", "ok3"]
+sounds.en = ["ok1", "ok2", "ok3"]
+phrases.ru = ["сделай громче", "громче", "прибавь громкость", "увеличь громкость"]
+phrases.en = ["louder", "turn it up", "volume up", "increase volume"]
+phrases.ua = ["зроби гучніше", "гучніше", "збільш гучність"]
+
+[[commands]]
+id = "volume_down"
+type = "lua"
+platforms = ["macos"]
+script = "volume.lua"
+sandbox = "full"
+timeout = 5000
+sounds.ru = ["ok1", "ok2", "ok3"]
+sounds.en = ["ok1", "ok2", "ok3"]
+phrases.ru = ["сделай тише", "тише", "убавь громкость", "уменьши громкость"]
+phrases.en = ["quieter", "turn it down", "volume down", "decrease volume"]
+phrases.ua = ["зроби тихіше", "тихіше", "зменш гучність"]
+
+[[commands]]
+id = "volume_mute"
+type = "lua"
+platforms = ["macos"]
+script = "volume.lua"
+sandbox = "full"
+timeout = 5000
+sounds.ru = ["ok1", "ok2"]
+sounds.en = ["ok1", "ok2"]
+phrases.ru = ["выключи звук", "приглуши звук", "отключи звук", "тишина"]
+phrases.en = ["mute", "mute the sound", "silence"]
+phrases.ua = ["вимкни звук", "тиша"]
+
+[[commands]]
+id = "volume_unmute"
+type = "lua"
+platforms = ["macos"]
+script = "volume.lua"
+sandbox = "full"
+timeout = 5000
+sounds.ru = ["ok1", "ok2"]
+sounds.en = ["ok1", "ok2"]
+phrases.ru = ["включи звук", "верни звук"]
+phrases.en = ["unmute", "sound on"]
+phrases.ua = ["увімкни звук"]

@@ -390,10 +390,52 @@ mod tests {
         assert!(get_command_by_id(&packs, "nope").is_none());
     }
 
+    // The same id may appear twice when the variants are for different operating systems
+    // (an AutoHotkey one for Windows, a Lua one for macOS): it is one intent with two
+    // implementations. Two variants that can be active at once are a mistake - the intent
+    // classifier would train one intent from both and command lookup would pick either.
+    #[test]
+    fn command_ids_do_not_collide_on_one_platform() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources/commands");
+        let mut seen: HashMap<String, Vec<(String, Vec<String>)>> = HashMap::new();
+
+        for entry in fs::read_dir(&root).expect("resources/commands missing").flatten() {
+            let toml_file = entry.path().join("command.toml");
+            if !toml_file.exists() {
+                continue;
+            }
+            let content = fs::read_to_string(&toml_file).unwrap();
+            let parsed: JCommandsList = toml::from_str(&content).unwrap();
+
+            for cmd in parsed.commands {
+                seen.entry(cmd.id.clone())
+                    .or_default()
+                    .push((toml_file.display().to_string(), cmd.platforms.clone()));
+            }
+        }
+
+        for (id, variants) in seen {
+            for (i, (pack_a, platforms_a)) in variants.iter().enumerate() {
+                for (pack_b, platforms_b) in variants.iter().skip(i + 1) {
+                    let overlap = platforms_a.is_empty()
+                        || platforms_b.is_empty()
+                        || platforms_a.iter().any(|a| platforms_b.iter().any(|b| a.eq_ignore_ascii_case(b)));
+
+                    assert!(!overlap,
+                        "command id '{}' is active on the same platform in {} ({:?}) and {} ({:?})",
+                        id, pack_a, platforms_a, pack_b, platforms_b);
+                }
+            }
+        }
+    }
+
+    // every command pack shipped in resources/commands must parse
+    #[test]
     #[test]
     fn shipped_command_packs_parse() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../resources/commands");
         let mut checked = 0;
+        let mut available_here = 0;
 
         for entry in fs::read_dir(&root).expect("resources/commands missing").flatten() {
             let toml_file = entry.path().join("command.toml");
@@ -409,13 +451,14 @@ mod tests {
                 assert!(!cmd.id.is_empty(), "{}: command without id", toml_file.display());
                 assert!(!cmd.phrases.is_empty(), "{}: '{}' has no phrases", toml_file.display(), cmd.id);
             }
-            assert!(
-                commands.iter().any(|c| c.supports_current_platform()),
-                "{}: no command available on {}", toml_file.display(), std::env::consts::OS
-            );
+            // a pack may legitimately be for another OS (the AutoHotkey ones are Windows only)
+            if commands.iter().any(|c| c.supports_current_platform()) {
+                available_here += 1;
+            }
             checked += 1;
         }
 
         assert!(checked > 0, "no command packs found in {}", root.display());
+        assert!(available_here > 0, "no command pack works on {}", std::env::consts::OS);
     }
 }

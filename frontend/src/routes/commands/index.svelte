@@ -14,7 +14,9 @@
         id: string
         type: string
         description: string
+        platforms: string[]
         phrases: Record<string, string[]>
+        pack: string
     }
 
     let commands: Command[] = []
@@ -57,9 +59,18 @@
     $: filtered = normalized
         ? commands.filter(c =>
             c.id.toLowerCase().includes(normalized) ||
+            c.pack.toLowerCase().includes(normalized) ||
             c.description.toLowerCase().includes(normalized) ||
             phrasesFor(c).some(p => p.toLowerCase().includes(normalized)))
         : commands
+
+    // commands come from packs (a folder each); showing them grouped makes it obvious
+    // where a command lives and which pack to edit
+    $: groups = filtered.reduce<Record<string, Command[]>>((acc, cmd) => {
+        (acc[cmd.pack] ??= []).push(cmd)
+        return acc
+    }, {})
+    $: groupNames = Object.keys(groups).sort()
 
     const typeIcon: Record<string, string> = {
         lua: "code",
@@ -91,35 +102,86 @@
     {:else if filtered.length === 0}
         <EmptyState icon="search" title={t("commands-no-results")} />
     {:else}
-        <div class="list">
-            {#each filtered as cmd (cmd.id)}
-                {@const phrases = phrasesFor(cmd)}
-                <article class="command">
-                    <div class="command-head">
-                        <span class="command-icon"><Icon name={typeIcon[cmd.type] ?? "list"} size={15} /></span>
-                        <div class="command-title">
-                            <span class="command-id">{cmd.id}</span>
-                            {#if cmd.description}<span class="command-desc">{cmd.description}</span>{/if}
-                        </div>
-                        <span class="badge">{cmd.type}</span>
+        <div class="packs">
+            {#each groupNames as pack (pack)}
+                <section class="pack">
+                    <header class="pack-head">
+                        <Icon name="folder" size={14} />
+                        <span class="pack-name">{pack}</span>
+                        <span class="pack-count">{groups[pack].length}</span>
+                    </header>
+
+                    <div class="list">
+                        {#each groups[pack] as cmd (cmd.pack + cmd.id)}
+                            {@const phrases = phrasesFor(cmd)}
+                            <article class="command">
+                                <div class="command-head">
+                                    <span class="command-icon"><Icon name={typeIcon[cmd.type] ?? "list"} size={15} /></span>
+                                    <div class="command-title">
+                                        <span class="command-id">{cmd.id}</span>
+                                        {#if cmd.description}<span class="command-desc">{cmd.description}</span>{/if}
+                                    </div>
+                                    {#if cmd.platforms?.length}
+                                        <span class="platforms" title={cmd.platforms.join(", ")}>{cmd.platforms.join(" · ")}</span>
+                                    {/if}
+                                    <span class="badge">{cmd.type}</span>
+                                </div>
+                                {#if phrases.length}
+                                    <div class="phrases">
+                                        {#each phrases.slice(0, 6) as phrase}
+                                            <span class="phrase">{phrase}</span>
+                                        {/each}
+                                        {#if phrases.length > 6}
+                                            <span class="phrase more">+{phrases.length - 6}</span>
+                                        {/if}
+                                    </div>
+                                {/if}
+                            </article>
+                        {/each}
                     </div>
-                    {#if phrases.length}
-                        <div class="phrases">
-                            {#each phrases.slice(0, 6) as phrase}
-                                <span class="phrase">{phrase}</span>
-                            {/each}
-                            {#if phrases.length > 6}
-                                <span class="phrase more">+{phrases.length - 6}</span>
-                            {/if}
-                        </div>
-                    {/if}
-                </article>
+                </section>
             {/each}
         </div>
+
     {/if}
 </div>
 
 <style lang="scss">
+    .packs {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+    }
+
+    .pack-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+        color: var(--text-muted);
+    }
+
+    .pack-name {
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+    }
+
+    .pack-count {
+        font-size: 11px;
+        padding: 1px 6px;
+        border-radius: var(--radius-full);
+        background: var(--surface);
+        border: 1px solid var(--border);
+    }
+
+    .platforms {
+        font-size: 11px;
+        color: var(--text-muted);
+        white-space: nowrap;
+    }
+
     .list {
         display: flex;
         flex-direction: column;

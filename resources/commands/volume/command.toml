@@ -1,0 +1,13 @@
+# System volume on Windows, through the bundled AutoHotkey executables.
+# macOS and Linux use the volume_mac pack instead.
+
+[[commands]]
+id = "volume_mute_win"
+type = "ahk"
+platforms = ["windows"]
+exe_path = "ahk/Mute volume.exe"
+sounds.ru = ["ok1", "ok2"]
+sounds.en = ["ok1", "ok2"]
+phrases.ru = ["выключи звук", "приглуши звук", "отключи звук"]
+phrases.en = ["mute", "mute the sound"]
+phrases.ua = ["вимкни звук"]

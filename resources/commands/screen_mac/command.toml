@@ -1,0 +1,40 @@
+# Screen: lock, sleep, screenshot. Nothing here destroys data.
+
+[[commands]]
+id = "lock_screen"
+type = "lua"
+platforms = ["macos"]
+script = "screen.lua"
+sandbox = "full"
+timeout = 5000
+sounds.ru = ["ok1", "ok2"]
+sounds.en = ["ok1", "ok2"]
+phrases.ru = ["заблокируй экран", "заблокируй компьютер", "блокировка"]
+phrases.en = ["lock the screen", "lock the computer"]
+phrases.ua = ["заблокуй екран"]
+
+[[commands]]
+id = "sleep_display"
+type = "lua"
+platforms = ["macos"]
+script = "screen.lua"
+sandbox = "full"
+timeout = 5000
+sounds.ru = ["ok1", "ok2"]
+sounds.en = ["ok1", "ok2"]
+phrases.ru = ["выключи экран", "погаси экран", "усыпи экран"]
+phrases.en = ["turn off the display", "sleep the display"]
+phrases.ua = ["вимкни екран"]
+
+[[commands]]
+id = "screenshot"
+type = "lua"
+platforms = ["macos"]
+script = "screen.lua"
+sandbox = "full"
+timeout = 8000
+sounds.ru = ["ok1", "ok2"]
+sounds.en = ["ok1", "ok2"]
+phrases.ru = ["сделай скриншот", "сними экран", "скриншот"]
+phrases.en = ["take a screenshot", "screenshot"]
+phrases.ua = ["зроби знімок екрана", "скріншот"]

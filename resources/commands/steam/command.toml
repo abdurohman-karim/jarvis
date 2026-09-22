@@ -1,0 +1,12 @@
+# Steam, through the bundled AutoHotkey executable.
+
+[[commands]]
+id = "open_steam"
+type = "ahk"
+platforms = ["windows"]
+exe_path = "ahk/Open steam.exe"
+sounds.ru = ["ok1", "ok2", "ok3"]
+sounds.en = ["ok1", "ok2"]
+phrases.ru = ["открой стим", "запусти стим"]
+phrases.en = ["open steam", "launch steam"]
+phrases.ua = ["відкрий стім"]

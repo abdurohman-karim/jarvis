@@ -1,0 +1,23 @@
+# Reports the machine's state out loud.
+
+[[commands]]
+id = "battery_level"
+type = "lua"
+platforms = ["macos"]
+script = "battery.lua"
+sandbox = "full"
+timeout = 8000
+phrases.ru = ["сколько заряда", "заряд батареи", "сколько осталось батареи"]
+phrases.en = ["battery level", "how much battery is left"]
+phrases.ua = ["скільки заряду", "заряд батареї"]
+
+[[commands]]
+id = "wifi_network"
+type = "lua"
+platforms = ["macos"]
+script = "wifi.lua"
+sandbox = "full"
+timeout = 8000
+phrases.ru = ["какая сеть", "к какому вайфаю подключен", "какой вайфай"]
+phrases.en = ["which network am i on", "what wifi is this"]
+phrases.ua = ["яка мережа", "який вайфай"]
