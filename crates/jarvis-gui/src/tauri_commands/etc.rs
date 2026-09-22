@@ -25,3 +25,12 @@ pub fn get_ipc_token() -> Result<String, String> {
         .map(|t| t.trim().to_string())
         .map_err(|e| e.to_string())
 }
+
+// Speech engines that can actually be used here ("clone" needs the optional component)
+#[tauri::command(async)]
+pub fn available_speech_engines() -> Vec<String> {
+    jarvis_core::speech::available_engines()
+        .into_iter()
+        .map(|e| e.to_string())
+        .collect()
+}

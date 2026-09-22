@@ -162,6 +162,8 @@ pub const VOSK_SPEECH_PARTIAL_WORDS: bool = false;
 pub const DEFAULT_AI_MODEL: &str = "gemini-3.5-flash";
 pub const DEFAULT_AI_FALLBACK: bool = false;      // off until a key is configured
 pub const DEFAULT_SPEAK_AI_ANSWERS: bool = true;
+// "system" (instant, any machine) or "clone" (the voice pack's voice, optional component)
+pub const DEFAULT_TTS_ENGINE: &str = "system";
 pub const AI_TIMEOUT_SECONDS: u64 = 20;
 pub const AI_MAX_OUTPUT_TOKENS: u32 = 300;
 // rough speaking rate of the system voices, used to guess how long an answer is audible

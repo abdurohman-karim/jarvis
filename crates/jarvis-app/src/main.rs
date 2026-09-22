@@ -101,6 +101,9 @@ fn main() -> Result<(), String> {
     info!("Commands initialized. Count: {}, List: {:?}", cmds.len(), commands::list_paths(&cmds));
     commands::set_list(cmds);
 
+    // get the speech engine ready (the cloning model takes seconds to load)
+    jarvis_core::speech::warm_up(&i18n::get_language());
+
     // init audio
     if audio::init().is_err() {
         // @TODO. Allow continuing even without audio?

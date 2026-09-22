@@ -4,13 +4,37 @@
 // language model are not known in advance, so they go through the OS instead.
 
 use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use parking_lot::Mutex;
 
 use crate::{audio, config, DB};
 
+pub mod phrase_bank;
+pub mod clone;
+
+// How arbitrary text is spoken.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Engine {
+    // the operating system's voice: instant, offline, but not the assistant's voice
+    System,
+    // the voice pack's own voice, cloned locally (optional component, seconds per phrase)
+    Clone,
+}
+
+fn engine() -> Engine {
+    let configured = DB.get().map(|db| db.read().tts_engine.clone()).unwrap_or_default();
+    match configured.as_str() {
+        "clone" => Engine::Clone,
+        _ => Engine::System,
+    }
+}
+
 // the currently speaking process, so a new answer can interrupt the previous one
 static SPEAKING: Mutex<Option<Child>> = Mutex::new(None);
+
+// Bumped by stop(); a background synthesis that finishes after it is discarded.
+static GENERATION: AtomicU64 = AtomicU64::new(0);
 
 pub fn is_available() -> bool {
     cfg!(any(target_os = "macos", target_os = "windows", target_os = "linux"))
@@ -28,6 +52,49 @@ pub fn say(text: &str, language: &str) -> bool {
 
     stop();
 
+    // a phrase generated in the voice pack's own voice beats any synthesis
+    if let Some(recording) = phrase_bank::lookup(text, language) {
+        debug!("Speaking a pre-generated phrase: {}", recording.display());
+        audio::play_sound(&recording);
+        return true;
+    }
+
+    if engine() == Engine::Clone {
+        // Synthesis takes seconds. Doing it inline would block whatever asked to speak
+        // (a Lua command would hit its own timeout), so it happens in the background and
+        // the audio plays when it is ready.
+        let text = text.to_string();
+        let language = language.to_string();
+        let generation = GENERATION.load(Ordering::SeqCst);
+
+        std::thread::Builder::new()
+            .name("voice-clone".into())
+            .spawn(move || match clone::synthesize(&text, &language) {
+                Ok(path) => {
+                    // a newer utterance (or stop()) happened while we were synthesizing
+                    if GENERATION.load(Ordering::SeqCst) != generation {
+                        debug!("Discarding a cloned phrase that is no longer current");
+                        return;
+                    }
+                    if let Some(duration) = clone::duration_of(&path) {
+                        audio::mark_output_busy_for(duration);
+                    }
+                    audio::play_sound(&path);
+                }
+                Err(e) => {
+                    // the optional component may be missing or broken; say it anyway
+                    warn!("Voice cloning failed ({}), falling back to the system voice", e);
+                    if let Some(child) = spawn(&text, &language) {
+                        audio::mark_output_busy_for(estimated_duration(&text));
+                        *SPEAKING.lock() = Some(child);
+                    }
+                }
+            })
+            .ok();
+
+        return true;
+    }
+
     let child = spawn(text, language);
 
     match child {
@@ -42,11 +109,29 @@ pub fn say(text: &str, language: &str) -> bool {
     }
 }
 
+// Which engines can actually be used right now
+pub fn available_engines() -> Vec<&'static str> {
+    let mut engines = vec!["system"];
+    if clone::is_installed() {
+        engines.push("clone");
+    }
+    engines
+}
+
 // Stop an answer that is still being read out (a new command interrupts it).
 pub fn stop() {
+    GENERATION.fetch_add(1, Ordering::SeqCst);
+
     if let Some(mut child) = SPEAKING.lock().take() {
         let _ = child.kill();
         let _ = child.wait();
+    }
+}
+
+// Get the speech engine ready, so the first phrase does not wait for a model to load.
+pub fn warm_up(language: &str) {
+    if engine() == Engine::Clone && clone::is_installed() {
+        clone::warm_up(language);
     }
 }
 

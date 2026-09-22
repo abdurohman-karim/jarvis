@@ -4,6 +4,12 @@ name = "Jarvis New"
 author = "Abraham (Priler)"
 languages = ["ru", "ua", "en"]
 
+# Reference clip for voice cloning: a recording of this voice and what is said in it.
+# scripts/voice-clone/ uses it to speak text the pack has no recording for.
+[clone.ru]
+reference = "ru/joke2.mp3"
+text = "сэр вы когда-нибудь задумывались почему в монголии живут монголы а в чехии не чехолы"
+
 [reactions.ru]
 # app startup
 greet = ["greet1"]

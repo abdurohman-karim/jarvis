@@ -75,6 +75,28 @@ python3 post_build.py --sync
 
 On first launch macOS will ask for microphone access - allow it, otherwise the wake-word never triggers.
 
+#### Speaking in the assistant's own voice (optional)
+
+Voice packs are short recordings, so anything else - an answer from the language model, the
+current time - is spoken by the operating system's voice. `scripts/voice-clone/` clones the
+pack's voice from a single reference clip (declared in `voice.toml`) so it can say anything:
+
+```bash
+./scripts/voice-clone/install.sh          # ~4 GB: PyTorch and a speech model, not bundled
+```
+
+Then pick "Jarvis voice" as the speech engine in the settings. Synthesis takes a few
+seconds per phrase, so phrases that are known in advance are generated once and shipped
+with the pack instead:
+
+```bash
+scripts/voice-clone/venv/bin/python scripts/voice-clone/synth.py \
+  --reference resources/sound/voices/jarvis-remaster/ru/joke2.mp3 \
+  --reference-text "..." \
+  --phrases scripts/voice-clone/phrases-ru.txt \
+  --out resources/sound/voices/jarvis-remaster/ru/phrases
+```
+
 #### Release build (.app + .dmg)
 
 ```bash

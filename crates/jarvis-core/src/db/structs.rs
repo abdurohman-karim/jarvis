@@ -40,10 +40,15 @@ pub struct Settings {
     pub ai_fallback: bool,
     #[serde(default)]
     pub ai_model: String,
-    // read AI answers out loud with the system speech synthesis
+    // read AI answers out loud
     #[serde(default = "default_speak_ai_answers")]
     pub speak_ai_answers: bool,
+    // how arbitrary text is spoken: "system" or "clone"
+    #[serde(default = "default_tts_engine")]
+    pub tts_engine: String,
 }
+
+fn default_tts_engine() -> String { config::DEFAULT_TTS_ENGINE.to_string() }
 
 fn default_ai_fallback() -> bool { config::DEFAULT_AI_FALLBACK }
 fn default_speak_ai_answers() -> bool { config::DEFAULT_SPEAK_AI_ANSWERS }
@@ -85,6 +90,7 @@ impl Settings {
             "ai_fallback"               => Some(self.ai_fallback.to_string()),
             "ai_model"                  => Some(self.ai_model.clone()),
             "speak_ai_answers"          => Some(self.speak_ai_answers.to_string()),
+            "tts_engine"                => Some(self.tts_engine.clone()),
             _ => None,
         }
     }
@@ -171,6 +177,13 @@ impl Settings {
             "speak_ai_answers" => {
                 self.speak_ai_answers = parse_bool(val)?;
             }
+            "tts_engine" => {
+                let val = val.trim().to_lowercase();
+                if !["system", "clone"].contains(&val.as_str()) {
+                    return Err(format!("unknown speech engine: '{}'", val));
+                }
+                self.tts_engine = val;
+            }
             _ => return Err(format!("unknown setting: '{}'", key)),
         }
         Ok(())
@@ -197,6 +210,7 @@ impl Settings {
             "ai_fallback",
             "ai_model",
             "speak_ai_answers",
+            "tts_engine",
         ]
     }
 }
@@ -233,6 +247,7 @@ impl Default for Settings {
             ai_fallback: config::DEFAULT_AI_FALLBACK,
             ai_model: String::new(),
             speak_ai_answers: config::DEFAULT_SPEAK_AI_ANSWERS,
+            tts_engine: config::DEFAULT_TTS_ENGINE.to_string(),
         }
     }
 }

@@ -65,6 +65,7 @@ fn main() {
             // etc
             tauri_commands::get_app_version,
             tauri_commands::get_ipc_token,
+            tauri_commands::available_speech_engines,
 
             // fs
             tauri_commands::get_log_file_path,

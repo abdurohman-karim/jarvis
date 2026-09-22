@@ -71,6 +71,8 @@
     let aiModel = ""
     let aiFallback = false
     let speakAiAnswers = true
+    let ttsEngine = "system"
+    let speechEngines: string[] = []
 
     let logFilePath = ""
     appInfo.subscribe(info => {
@@ -131,6 +133,7 @@
                 ["ai_model", aiModel],
                 ["ai_fallback", aiFallback.toString()],
                 ["speak_ai_answers", speakAiAnswers.toString()],
+                ["tts_engine", ttsEngine],
             ]})
 
             assistantVoice.set(voiceVal)
@@ -203,7 +206,7 @@
 
             const [mic, wakeWord, intentReco, slotEngine, glinerModel, voskModel,
                    noiseSuppression, vad, gainNormalizer, pico, openai,
-                   gemini, model, fallback, speakAnswers] = await Promise.all([
+                   gemini, model, fallback, speakAnswers, engine] = await Promise.all([
                 invoke<string>("db_read", { key: "selected_microphone" }),
                 invoke<string>("db_read", { key: "selected_wake_word_engine" }),
                 invoke<string>("db_read", { key: "intent_backend" }),
@@ -218,7 +221,8 @@
                 invoke<string>("db_read", { key: "api_key__gemini" }),
                 invoke<string>("db_read", { key: "ai_model" }),
                 invoke<string>("db_read", { key: "ai_fallback" }),
-                invoke<string>("db_read", { key: "speak_ai_answers" })
+                invoke<string>("db_read", { key: "speak_ai_answers" }),
+                invoke<string>("db_read", { key: "tts_engine" })
             ])
 
             selectedMicrophone = mic || "-1"
@@ -236,6 +240,8 @@
             aiModel = model || ""
             aiFallback = fallback === "true"
             speakAiAnswers = speakAnswers !== "false"
+            ttsEngine = engine || "system"
+            speechEngines = await invoke<string[]>("available_speech_engines")
         } catch (err) {
             console.error("failed to load settings:", err)
         }
@@ -420,6 +426,28 @@
         <Field label={t("settings-ai-speak")} description={t("settings-ai-speak-desc")} inline>
             <Toggle bind:checked={speakAiAnswers} />
         </Field>
+
+        {#key speechEngines}
+            <Field label={t("settings-tts-engine")} description={t("settings-tts-engine-desc")}>
+                <Select
+                    bind:value={ttsEngine}
+                    options={[
+                        { label: t("settings-tts-system"), value: "system" },
+                        ...(speechEngines.includes("clone") ? [{ label: t("settings-tts-clone"), value: "clone" }] : []),
+                    ]}
+                />
+            </Field>
+        {/key}
+
+        {#if !speechEngines.includes("clone")}
+            <div class="notice info">
+                <Icon name="info" size={16} />
+                <div>
+                    <p class="notice-title">{t("settings-tts-clone-title")}</p>
+                    <p class="notice-text">{t("settings-tts-clone-hint")}</p>
+                </div>
+            </div>
+        {/if}
     </Card>
 
     <!-- diagnostics -->

@@ -11,6 +11,25 @@ pub struct VoiceConfig {
 
     // Multi-language reactions
     pub reactions: HashMap<String, VoiceReactions>,
+
+    // Recording used as the reference when cloning this voice, per language.
+    #[serde(default)]
+    pub clone: HashMap<String, CloneReference>,
+}
+
+impl VoiceConfig {
+    // Reference clip for cloning this voice in `language`, if the pack declares one.
+    pub fn clone_reference(&self, language: &str) -> Option<&CloneReference> {
+        self.clone.get(language)
+    }
+}
+
+// A clip of this voice plus what is said in it: cloning needs both.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CloneReference {
+    // path relative to the voice pack, e.g. "ru/joke2.mp3"
+    pub reference: String,
+    pub text: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

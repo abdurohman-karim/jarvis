@@ -80,6 +80,16 @@ pub fn strip_assistant_phrases(text: &str) -> String {
     filtered.trim().to_string()
 }
 
+// Pre-generated in the voice packs, so this is spoken in the assistant's own voice
+fn ai_unavailable_message(language: &str) -> String {
+    match language {
+        "ru" => "Нейросеть не отвечает",
+        "ua" => "Нейромережа не відповідає",
+        _ => "The model is not answering",
+    }
+    .to_string()
+}
+
 fn ai_fallback_enabled() -> bool {
     DB.get().map(|db| db.read().ai_fallback).unwrap_or(false) && ai::is_configured()
 }
@@ -104,7 +114,13 @@ fn answer_with_ai(question: &str) -> bool {
         }
         Err(e) => {
             warn!("AI could not answer: {}", e);
-            false
+
+            // "command not found" would be misleading: the command was understood, the
+            // model just could not answer (no quota, no network, bad key)
+            ipc::send(IpcEvent::Error { message: format!("AI: {}", e) });
+            speech::say(&ai_unavailable_message(&language), &language);
+            ipc::send(IpcEvent::Idle);
+            true
         }
     }
 }
