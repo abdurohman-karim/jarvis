@@ -31,6 +31,12 @@ fn main() -> Result<(), String> {
     // initialize logging
     log::init_logging()?;
 
+    // panics would otherwise go to stderr, which nobody sees when launched from the GUI
+    std::panic::set_hook(Box::new(|info| {
+        let thread = std::thread::current();
+        error!("PANIC in thread '{}': {}", thread.name().unwrap_or("?"), info);
+    }));
+
     // log some base info
     info!("Starting Jarvis v{} ...", config::APP_VERSION.unwrap());
     info!("Config directory is: {}", APP_CONFIG_DIR.get().unwrap().display());
@@ -169,13 +175,23 @@ fn main() -> Result<(), String> {
     });
     
     // start the audio pipeline (in the background thread)
-    std::thread::spawn(move || {
-        let _ = app::start(executor);
-        // the main thread is blocked in the tray event loop, so once the
-        // assistant loop ends (e.g. "stop" from the GUI) end the process here
-        info!("Assistant loop finished, exiting.");
-        std::process::exit(0);
-    });
+    std::thread::Builder::new().name("audio-processing".into()).spawn(move || {
+        // the main thread is blocked in the tray event loop, so once the assistant loop
+        // ends (stop from the GUI, or a crash) end the process here instead of leaving
+        // a tray icon without an assistant behind it
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| app::start(executor))) {
+            Ok(_) => {
+                info!("Assistant loop finished, exiting.");
+                std::process::exit(0);
+            }
+            Err(_) => {
+                error!("Assistant pipeline crashed, exiting.");
+                ipc::send(ipc::IpcEvent::Error { message: "Assistant crashed, see log.txt".into() });
+                std::thread::sleep(std::time::Duration::from_millis(200)); // let the event flush
+                std::process::exit(2);
+            }
+        }
+    }).expect("failed to spawn audio processing thread");
 
     tray::init_blocking(settings);
 
