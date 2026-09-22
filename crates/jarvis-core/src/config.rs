@@ -232,6 +232,11 @@ pub fn get_wake_phrases(lang: &str) -> &'static [&'static str] {
     }
 }
 
+// how many leading words may be dropped as a misheard wake word, and how similar to a
+// wake phrase a word must be (percent) to count as one - see text::strip_wake_word_prefix
+pub const WAKE_PREFIX_MAX_WORDS: usize = 3;
+pub const WAKE_PREFIX_MIN_RATIO: f64 = 60.0;
+
 pub fn get_phrases_to_remove(lang: &str) -> &'static [&'static str] {
     match lang {
         "ru" => &[

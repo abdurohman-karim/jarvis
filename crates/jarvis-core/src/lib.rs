@@ -43,6 +43,8 @@ pub mod ipc;
 
 pub mod voices;
 
+pub mod text;
+
 pub mod audio_buffer;
 
 #[cfg(feature = "lua")]

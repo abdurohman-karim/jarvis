@@ -12,7 +12,7 @@
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, SyncSender, TrySendError};
 use std::time::{Duration, Instant};
 
-use jarvis_core::{audio, audio_buffer::AudioRingBuffer, audio_processing, config, listener, recorder, stt, voices, ipc::{self, IpcEvent}, i18n};
+use jarvis_core::{audio, audio_buffer::AudioRingBuffer, audio_processing, config, listener, recorder, stt, text, voices, ipc::{self, IpcEvent}, i18n};
 
 use crate::executor::{self, ExecutorHandle};
 use crate::should_stop;
@@ -308,7 +308,8 @@ fn listen_for_command(frames: &Receiver<Frame>, executor: &ExecutorHandle, prefe
     // longer silence threshold for commands (user might pause to think): 5 seconds
     let silence_threshold = frames_for_seconds(5.0);
 
-    let wake_phrases = config::get_wake_phrases(&i18n::get_language());
+    let language = i18n::get_language();
+    let wake_phrases = config::get_wake_phrases(&language);
 
     loop {
         let Some(frame) = next_frame(frames) else {
@@ -351,12 +352,14 @@ fn listen_for_command(frames: &Receiver<Frame>, executor: &ExecutorHandle, prefe
 
             VadState::VoiceActive => {
                 // feed to STT
-                if let Some(recognized_voice) = stt::recognize(&processed.samples, false) {
-                    info!("Recognized voice: {}", recognized_voice);
+                if let Some(raw) = stt::recognize(&processed.samples, false) {
+                    info!("Recognized voice: {}", raw);
+
+                    // the full recognizer renders the wake word as whatever sounds close
+                    // ("тебя рис"), so drop that leftover before reporting or matching
+                    let mut recognized_voice = text::strip_wake_word_prefix(&raw.to_lowercase(), &language);
 
                     ipc::send(IpcEvent::SpeechRecognized { text: recognized_voice.clone() });
-
-                    let mut recognized_voice = recognized_voice.to_lowercase();
 
                     // check if wake word repeated (reactivate)
                     if wake_phrases.iter().any(|wp| recognized_voice.contains(wp)) {
