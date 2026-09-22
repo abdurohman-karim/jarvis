@@ -53,8 +53,8 @@ jobs:
       - name: Build assistant + cli
         run: cargo build -p jarvis-app -p jarvis-cli
 
-      - name: Check GUI
-        run: cargo check -p jarvis-gui --no-default-features
+      - name: GUI tests
+        run: cargo test -p jarvis-gui --no-default-features
 
       - name: Warnings are errors
         run: cargo build -p jarvis-app -p jarvis-cli
