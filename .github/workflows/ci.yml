@@ -30,11 +30,8 @@ jobs:
         run: npm ci
         working-directory: frontend
 
-      - name: Frontend type check
-        run: npx svelte-check --ignore '.routify' --no-tsconfig
-        working-directory: frontend
-
-      - name: Frontend build
+      # `npm run build` generates the routify routes, type-checks and bundles
+      - name: Frontend check + build
         run: npm run build
         working-directory: frontend
 

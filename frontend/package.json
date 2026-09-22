@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "svelte-check --ignore '.routify' --no-tsconfig && vite build",
+    "build": "npm run routes && svelte-check --ignore '.routify' --no-tsconfig && vite build",
     "preview": "vite preview",
-    "check": "svelte-check --ignore '.routify' --tsconfig ./tsconfig.json",
-    "tauri": "tauri"
+    "check": "npm run routes && svelte-check --ignore '.routify' --tsconfig ./tsconfig.json",
+    "tauri": "tauri",
+    "routes": "routify build"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.9.1",
