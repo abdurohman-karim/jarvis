@@ -2,13 +2,13 @@ pub mod noise_suppression;
 pub mod vad;
 pub mod gain_normalizer;
 
-use once_cell::sync::OnceCell;
 use parking_lot::Mutex;
 
 use crate::config::structs::NoiseSuppressionBackend;
 use crate::DB;
 
-static PROCESSOR: OnceCell<Mutex<AudioProcessor>> = OnceCell::new();
+// replaced wholesale when the audio settings change
+static PROCESSOR: Mutex<Option<AudioProcessor>> = Mutex::new(None);
 
 #[derive(Debug, Clone)]
 pub struct ProcessedAudio {
@@ -70,25 +70,27 @@ impl AudioProcessor {
 }
 
 pub fn init() -> Result<(), String> {
-    if PROCESSOR.get().is_some() {
+    if PROCESSOR.lock().is_some() {
         return Ok(());
     }
+    reinit()
+}
 
+// Rebuild the processing chain from the current settings (noise suppression, gain, VAD).
+pub fn reinit() -> Result<(), String> {
     let (ns, gain) = get_settings();
     info!("Initializing audio processing: NS={:?}, Gain={}", ns, gain);
 
     let processor = AudioProcessor::new(ns, gain);
-    PROCESSOR
-        .set(Mutex::new(processor))
-        .map_err(|_| "Audio processor already initialized".to_string())?;
+    *PROCESSOR.lock() = Some(processor);
 
     info!("Audio processing initialized.");
     Ok(())
 }
 
 pub fn process(input: &[i16]) -> ProcessedAudio {
-    match PROCESSOR.get() {
-        Some(p) => p.lock().process(input),
+    match PROCESSOR.lock().as_mut() {
+        Some(p) => p.process(input),
         None => ProcessedAudio {
             samples: input.to_vec(),
             is_voice: true,
@@ -98,8 +100,8 @@ pub fn process(input: &[i16]) -> ProcessedAudio {
 }
 
 pub fn reset() {
-    if let Some(p) = PROCESSOR.get() {
-        p.lock().reset();
+    if let Some(p) = PROCESSOR.lock().as_mut() {
+        p.reset();
     }
 }
 

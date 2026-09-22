@@ -1,22 +1,28 @@
-use once_cell::sync::OnceCell;
 use vosk::{DecodingState, Recognizer};
 use std::sync::Arc;
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 
 use crate::{vosk_models, i18n, config, models};
 use crate::models::vosk::VoskModel;
 use crate::DB;
 
-// the model Arc keeps the vosk::Model alive for the recognizers
-static VOSK_MODEL: OnceCell<Arc<VoskModel>> = OnceCell::new();
-static WAKE_RECOGNIZER: OnceCell<Mutex<Recognizer>> = OnceCell::new();
-static SPEECH_RECOGNIZER: OnceCell<Mutex<Recognizer>> = OnceCell::new();
+// The model Arc keeps the vosk::Model alive for the recognizers. All three are replaced
+// together when the configured model or the language changes.
+static LOADED_MODEL_ID: RwLock<Option<String>> = RwLock::new(None);
+static VOSK_MODEL: RwLock<Option<Arc<VoskModel>>> = RwLock::new(None);
+static WAKE_RECOGNIZER: Mutex<Option<Recognizer>> = Mutex::new(None);
+static SPEECH_RECOGNIZER: Mutex<Option<Recognizer>> = Mutex::new(None);
 
 pub fn init_vosk() -> Result<(), String> {
-    if VOSK_MODEL.get().is_some() {
+    if VOSK_MODEL.read().is_some() {
         return Ok(());
     }
+    reload()
+}
 
+// (Re)load the configured model and rebuild both recognizers. The previously loaded model
+// is dropped from the registry, otherwise switching models would keep both in memory.
+pub fn reload() -> Result<(), String> {
     let model_path = get_configured_model_path()?;
     let model_id = format!("vosk:{}", model_path.display());
 
@@ -44,17 +50,33 @@ pub fn init_vosk() -> Result<(), String> {
     speech_recognizer.set_words(config::VOSK_SPEECH_RECOGNIZER_WORDS);
     speech_recognizer.set_partial_words(config::VOSK_SPEECH_PARTIAL_WORDS);
 
-    VOSK_MODEL.set(vosk).map_err(|_| "Model already set")?;
-    WAKE_RECOGNIZER.set(Mutex::new(wake_recognizer)).map_err(|_| "Wake recognizer already set")?;
-    SPEECH_RECOGNIZER.set(Mutex::new(speech_recognizer)).map_err(|_| "Speech recognizer already set")?;
+    // drop the recognizers of the previous model before releasing it
+    *WAKE_RECOGNIZER.lock() = Some(wake_recognizer);
+    *SPEECH_RECOGNIZER.lock() = Some(speech_recognizer);
+
+    let previous = VOSK_MODEL.write().replace(vosk);
+    let previous_id = LOADED_MODEL_ID.write().replace(model_id.clone());
+
+    if let (Some(previous), Some(previous_id)) = (previous, previous_id) {
+        if previous_id != model_id {
+            drop(previous);
+            models::registry().unload(&previous_id);
+        }
+    }
 
     Ok(())
 }
 
+// id of the model currently in use, if any
+pub fn loaded_model_id() -> Option<String> {
+    LOADED_MODEL_ID.read().clone()
+}
+
 
 pub fn recognize_wake_word(data: &[i16]) -> Option<(String, f32)> {
-    let mut recognizer = WAKE_RECOGNIZER.get()?.lock();
-    
+    let mut guard = WAKE_RECOGNIZER.lock();
+    let recognizer = guard.as_mut()?;
+
     match recognizer.accept_waveform(data) {
         Ok(DecodingState::Running) => {
             None
@@ -78,8 +100,9 @@ pub fn recognize_wake_word(data: &[i16]) -> Option<(String, f32)> {
 
 
 pub fn recognize_speech(data: &[i16]) -> Option<String> {
-    let mut recognizer = SPEECH_RECOGNIZER.get()?.lock();
-    
+    let mut guard = SPEECH_RECOGNIZER.lock();
+    let recognizer = guard.as_mut()?;
+
     match recognizer.accept_waveform(data) {
         Ok(DecodingState::Finalized) => {
             recognizer.result()
@@ -92,14 +115,14 @@ pub fn recognize_speech(data: &[i16]) -> Option<String> {
 
 
 pub fn reset_speech_recognizer() {
-    if let Some(recognizer) = SPEECH_RECOGNIZER.get() {
-        recognizer.lock().reset();
+    if let Some(recognizer) = SPEECH_RECOGNIZER.lock().as_mut() {
+        recognizer.reset();
     }
 }
 
 pub fn reset_wake_recognizer() {
-    if let Some(recognizer) = WAKE_RECOGNIZER.get() {
-        recognizer.lock().reset();
+    if let Some(recognizer) = WAKE_RECOGNIZER.lock().as_mut() {
+        recognizer.reset();
     }
 }
 

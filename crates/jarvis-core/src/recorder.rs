@@ -2,7 +2,8 @@ mod pvrecorder;
 
 use std::time::{Duration, Instant};
 
-use once_cell::sync::OnceCell;
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use parking_lot::Mutex;
 
 use crate::DB;
@@ -10,7 +11,7 @@ use crate::DB;
 // pvrecorder requires a frame buffer of 512 samples
 const FRAME_LENGTH: u32 = 512;
 
-static INITIALIZED: OnceCell<()> = OnceCell::new();
+static INITIALIZED: AtomicBool = AtomicBool::new(false);
 
 // Enumerating audio devices goes through the OS audio stack (CoreAudio / WASAPI) and takes
 // seconds on some machines; startup used to do it 3-4 times. Cache the list for a while.
@@ -18,7 +19,7 @@ static DEVICES_CACHE: Mutex<Option<(Instant, Vec<String>)>> = Mutex::new(None);
 const DEVICES_CACHE_TTL: Duration = Duration::from_secs(30);
 
 pub fn init() -> Result<(), ()> {
-    if INITIALIZED.get().is_some() {
+    if INITIALIZED.load(Ordering::SeqCst) {
         return Ok(());
     }
 
@@ -38,8 +39,15 @@ pub fn init() -> Result<(), ()> {
         get_audio_device_name(selected_microphone)
     );
 
-    let _ = INITIALIZED.set(());
+    INITIALIZED.store(true, Ordering::SeqCst);
     Ok(())
+}
+
+// Release the microphone and forget it, so the next init() picks up a device change.
+// A capture loop blocked in read_microphone returns false once this happens.
+pub fn shutdown() {
+    pvrecorder::shutdown();
+    INITIALIZED.store(false, Ordering::SeqCst);
 }
 
 // Blocks until a full frame is available; false on error (buffer untouched)

@@ -18,6 +18,19 @@ fn get_db_file_path() -> PathBuf {
     ))
 }
 
+// Read the settings file, or None if it is missing / unreadable / invalid.
+pub fn load_settings_file() -> Option<structs::Settings> {
+    let path = get_db_file_path();
+    let file = File::open(&path).ok()?;
+    match serde_json::from_reader(BufReader::new(file)) {
+        Ok(settings) => Some(settings),
+        Err(e) => {
+            warn!("Failed to parse {}: {}", path.display(), e);
+            None
+        }
+    }
+}
+
 pub fn init_settings() -> structs::Settings {
     let db_file_path = get_db_file_path();
 

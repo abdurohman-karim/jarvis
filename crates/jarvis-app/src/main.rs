@@ -159,6 +159,10 @@ fn main() -> Result<(), String> {
             IpcAction::SetMuted { muted } => {
                 app::set_muted(muted);
             }
+            IpcAction::ApplySettings => {
+                info!("Received apply settings request");
+                app::request_apply_settings();
+            }
             IpcAction::TextCommand { text } => {
                 info!("Received text command: {}", text);
                 ipc_executor.submit_text(text);

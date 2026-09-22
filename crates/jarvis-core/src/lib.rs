@@ -45,6 +45,9 @@ pub mod voices;
 
 pub mod text;
 
+#[cfg(feature = "jarvis_app")]
+pub mod reconfigure;
+
 pub mod audio_buffer;
 
 #[cfg(feature = "lua")]

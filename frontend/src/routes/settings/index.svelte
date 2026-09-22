@@ -3,7 +3,8 @@
     import { invoke } from "@tauri-apps/api/core"
 
     import { showInExplorer } from "@/functions"
-    import { appInfo, assistantVoice, translations, translate, isJarvisRunning, restartAssistant, assistantBusy } from "@/stores"
+    import { appInfo, assistantVoice, translations, translate, isJarvisRunning, ipcConnected,
+        applySettings, lastAppliedSettings, restartAssistant, assistantBusy } from "@/stores"
 
     import Card from "@/components/ui/Card.svelte"
     import Field from "@/components/ui/Field.svelte"
@@ -49,8 +50,9 @@
     let saving = false
     let saved = false
     let saveError = ""
-    // settings were saved while the assistant was running: it only reads them at startup
+    // set when the settings could not be handed to a running assistant
     let restartNeeded = false
+    let applying = false
     let savedTimer: ReturnType<typeof setTimeout> | null = null
 
     let voiceVal = ""
@@ -122,7 +124,27 @@
 
             assistantVoice.set(voiceVal)
             saved = true
-            restartNeeded = $isJarvisRunning
+
+            // a running assistant applies them without a restart
+            if ($isJarvisRunning && $ipcConnected) {
+                applying = true
+                lastAppliedSettings.set(null)
+                applySettings()
+                // the assistant answers with settings_applied; fall back to the restart
+                // hint if it stays silent (reloading a speech model can take a moment)
+                const answered = await Promise.race([
+                    new Promise<boolean>(resolve => {
+                        const stop = lastAppliedSettings.subscribe(v => {
+                            if (v !== null) { resolve(true); setTimeout(stop, 0) }
+                        })
+                    }),
+                    new Promise<boolean>(resolve => setTimeout(() => resolve(false), 10000)),
+                ])
+                applying = false
+                restartNeeded = !answered
+            } else {
+                restartNeeded = false
+            }
             if (savedTimer) clearTimeout(savedTimer)
             savedTimer = setTimeout(() => saved = false, 4000)
         } catch (err) {
@@ -369,7 +391,11 @@
     </Card>
 
     <div class="save-bar">
-        {#if restartNeeded && $isJarvisRunning}
+        {#if applying}
+            <span class="restart-hint">{t("settings-applying")}</span>
+        {:else if saved && $lastAppliedSettings?.length}
+            <span class="saved"><Icon name="check" size={14} /> {t("settings-applied")}</span>
+        {:else if restartNeeded && $isJarvisRunning}
             <span class="restart-hint">{t("settings-restart-hint")}</span>
             <Button size="sm" on:click={async () => { await restartAssistant(); restartNeeded = false }} disabled={$assistantBusy}>
                 <Icon name="refresh" size={14} />

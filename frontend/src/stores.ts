@@ -18,8 +18,10 @@ export {
     stopJarvisApp,
     reloadCommands,
     setMuted,
+    applySettings,
     isMuted,
-    commandsVersion
+    commandsVersion,
+    lastAppliedSettings
 } from "./lib/ipc"
 
 import { get } from "svelte/store"

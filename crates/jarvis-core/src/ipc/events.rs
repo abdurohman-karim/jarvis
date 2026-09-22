@@ -39,6 +39,9 @@ pub enum IpcEvent {
 
     // command packs were re-read from disk
     CommandsReloaded { count: usize },
+
+    // settings were re-read and applied to the running pipeline
+    SettingsApplied { changed: Vec<String> },
 }
 
 // Actions sent from GUI to jarvis-app
@@ -53,6 +56,9 @@ pub enum IpcAction {
     
     // Reload commands from disk
     ReloadCommands,
+
+    // Re-read settings and apply them without a restart
+    ApplySettings,
     
     // Ping to check connection
     Ping,

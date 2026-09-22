@@ -12,7 +12,8 @@
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, SyncSender, TrySendError};
 use std::time::{Duration, Instant};
 
-use jarvis_core::{audio, audio_buffer::AudioRingBuffer, audio_processing, config, listener, recorder, stt, text, voices, ipc::{self, IpcEvent}, i18n};
+use jarvis_core::{audio, audio_buffer::AudioRingBuffer, audio_processing, config, listener, recorder,
+    reconfigure::{self, PipelineSettings}, stt, text, voices, ipc::{self, IpcEvent}, i18n};
 
 use crate::executor::{self, ExecutorHandle};
 use crate::should_stop;
@@ -23,6 +24,14 @@ const FRAME_LENGTH: usize = recorder::frame_length();
 
 // while muted, captured audio is discarded (nothing reaches VAD / wake word / STT)
 static MUTED: AtomicBool = AtomicBool::new(false);
+
+// set by the IPC handler; the processing loop owns the pipeline, so it does the work
+static APPLY_SETTINGS: AtomicBool = AtomicBool::new(false);
+
+// Ask the running pipeline to re-read the settings and apply them.
+pub fn request_apply_settings() {
+    APPLY_SETTINGS.store(true, Ordering::SeqCst);
+}
 
 pub fn set_muted(muted: bool) {
     MUTED.store(muted, Ordering::SeqCst);
@@ -80,24 +89,55 @@ pub fn start(executor: ExecutorHandle) -> Result<(), ()> {
 
 // ### CAPTURE
 
+// Bumped when capture is restarted; the old thread notices and exits.
+static CAPTURE_GENERATION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 fn spawn_capture_thread() -> Receiver<Frame> {
     let (tx, rx) = mpsc::sync_channel::<Frame>(FRAME_QUEUE_CAPACITY);
+    let generation = CAPTURE_GENERATION.load(Ordering::SeqCst);
 
     std::thread::Builder::new()
         .name("audio-capture".into())
-        .spawn(move || capture_loop(tx))
+        .spawn(move || capture_loop(tx, generation))
         .expect("failed to spawn audio capture thread");
 
     rx
 }
 
-fn capture_loop(tx: SyncSender<Frame>) {
+// Tear the capture thread down and start a new one on the (possibly different) device.
+fn restart_capture(frames: &mut Receiver<Frame>) -> Result<(), ()> {
+    info!("Restarting audio capture ...");
+    CAPTURE_GENERATION.fetch_add(1, Ordering::SeqCst);
+    recorder::stop_recording().ok();
+    recorder::shutdown();
+
+    // drop the old channel: the previous thread exits on its next read
+    let (dead_tx, dead_rx) = mpsc::sync_channel::<Frame>(1);
+    drop(dead_tx);
+    *frames = dead_rx;
+
+    if recorder::init().is_err() {
+        error!("Failed to reinitialize the recorder after a settings change.");
+        return Err(());
+    }
+    if recorder::start_recording().is_err() {
+        error!("Failed to restart recording after a settings change.");
+        return Err(());
+    }
+
+    *frames = spawn_capture_thread();
+    info!("Audio capture restarted. Microphone: {}",
+        recorder::get_audio_device_name(recorder::get_selected_microphone_index()));
+    Ok(())
+}
+
+fn capture_loop(tx: SyncSender<Frame>, generation: u64) {
     let mut frame: Frame = [0; FRAME_LENGTH];
     let mut dropped: u64 = 0;
 
-    while !should_stop() {
+    while !should_stop() && CAPTURE_GENERATION.load(Ordering::SeqCst) == generation {
         if !recorder::read_microphone(&mut frame) {
-            // recorder error: don't spin
+            // the device was released (settings change) or errored: don't spin
             std::thread::sleep(Duration::from_millis(50));
             continue;
         }
@@ -153,7 +193,9 @@ fn next_frame(frames: &Receiver<Frame>) -> Option<Frame> {
 
 // ### PROCESSING
 
-fn processing_loop(frames: Receiver<Frame>, executor: ExecutorHandle) -> Result<(), ()> {
+fn processing_loop(mut frames: Receiver<Frame>, executor: ExecutorHandle) -> Result<(), ()> {
+    let mut settings = PipelineSettings::current();
+
     // ring buffer: keeps last 5 seconds of audio (pre-roll)
     let mut audio_buffer = AudioRingBuffer::new(5.0, FRAME_LENGTH, SAMPLE_RATE);
 
@@ -169,6 +211,28 @@ fn processing_loop(frames: Receiver<Frame>, executor: ExecutorHandle) -> Result<
 
     // ### WAKE WORD DETECTION LOOP
     'wake_word: loop {
+        if APPLY_SETTINGS.swap(false, Ordering::SeqCst) {
+            reconfigure::reload_from_disk();
+
+            if let (Some(previous), Some(new)) = (settings.clone(), PipelineSettings::current()) {
+                let plan = reconfigure::plan(&previous, &new);
+                reconfigure::apply(plan, &new);
+                settings = Some(new);
+
+                if plan.restart_capture && restart_capture(&mut frames).is_err() {
+                    ipc::send(IpcEvent::Error { message: "Failed to switch the microphone".into() });
+                    break;
+                }
+
+                if !plan.is_empty() {
+                    reset_after_command(&mut vad_state, &mut silence_frames, &mut audio_buffer);
+                }
+                let changed = plan.changed();
+                info!("Settings applied: {:?}", changed);
+                ipc::send(IpcEvent::SettingsApplied { changed });
+            }
+        }
+
         // executor finished a voice command?
         if let Some(done) = &running_command {
             match done.try_recv() {

@@ -14,6 +14,8 @@ export const lastError = writable("")
 export const isMuted = writable(false)
 // bumps every time the assistant reloaded its command packs
 export const commandsVersion = writable(0)
+// what the assistant re-applied after the last settings save
+export const lastAppliedSettings = writable<string[] | null>(null)
 
 // ### CONNECTION ###
 
@@ -160,6 +162,10 @@ function handleEvent(data: any) {
         case "commands_reloaded":
             commandsVersion.update(v => v + 1)
             break
+
+        case "settings_applied":
+            lastAppliedSettings.set(data.changed ?? [])
+            break
     }
 }
 
@@ -184,6 +190,11 @@ export function reloadCommands() {
 
 export function setMuted(muted: boolean) {
     return sendAction("set_muted", { muted })
+}
+
+// ask the running assistant to re-read the settings file and apply what changed
+export function applySettings() {
+    return sendAction("apply_settings")
 }
 
 export function sendIpcMessage(message: object): Promise<void> {

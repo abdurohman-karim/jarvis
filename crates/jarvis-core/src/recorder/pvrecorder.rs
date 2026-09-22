@@ -1,4 +1,4 @@
-use once_cell::sync::OnceCell;
+use parking_lot::RwLock;
 use pv_recorder::{PvRecorder, PvRecorderBuilder};
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -23,41 +23,47 @@ fn builder(frame_length: i32) -> PvRecorderBuilder {
     builder
 }
 
-static RECORDER: OnceCell<PvRecorder> = OnceCell::new();
+// The recorder is replaceable: switching the microphone in the settings tears the old one
+// down and builds a new one, so this is a lock rather than a write-once cell.
+static RECORDER: RwLock<Option<PvRecorder>> = RwLock::new(None);
 static IS_RECORDING: AtomicBool = AtomicBool::new(false);
 
 pub fn init_microphone(device_index: i32, frame_length: u32) -> bool {
-    if RECORDER.get().is_some() {
+    if RECORDER.read().is_some() {
         return true; // already initialized
     }
-    
-    // initialize
-    let pv_recorder = builder(frame_length as i32)
-        .device_index(device_index)
-        // .frame_length(frame_length as i32)
-        .init();
 
-    match pv_recorder {
+    match builder(frame_length as i32).device_index(device_index).init() {
         Ok(pv) => {
-            // store
-            let _ = RECORDER.set(pv);
-
-            // success
+            *RECORDER.write() = Some(pv);
             true
         }
         Err(msg) => {
             error!("Failed to initialize pvrecorder.\nError details: {:?}", msg);
-
-            // fail
             false
         }
+    }
+}
+
+// Drop the current recorder (stopping it first). A blocked read_microphone returns an
+// error once the device goes away, which is how the capture thread learns to stop.
+pub fn shutdown() {
+    let recorder = RECORDER.write().take();
+    if let Some(recorder) = recorder {
+        if IS_RECORDING.swap(false, Ordering::SeqCst) {
+            if let Err(e) = recorder.stop() {
+                warn!("Failed to stop the recorder while shutting it down: {}", e);
+            }
+        }
+        info!("Recorder released.");
     }
 }
 
 // Blocks until a full frame is available. Returns false if nothing was read
 // (recorder not initialized or read error) - the buffer is left untouched then.
 pub fn read_microphone(frame_buffer: &mut [i16]) -> bool {
-    let Some(recorder) = RECORDER.get() else {
+    let guard = RECORDER.read();
+    let Some(recorder) = guard.as_ref() else {
         return false;
     };
 
@@ -75,52 +81,49 @@ pub fn read_microphone(frame_buffer: &mut [i16]) -> bool {
 
 pub fn start_recording(device_index: i32, frame_length: u32) -> Result<(), ()> {
     // ensure microphone is initialized
-    init_microphone(device_index, frame_length);
+    if !init_microphone(device_index, frame_length) {
+        return Err(());
+    }
 
-    // start recording
-    match RECORDER.get().unwrap().start() {
+    let guard = RECORDER.read();
+    let Some(recorder) = guard.as_ref() else {
+        return Err(());
+    };
+
+    match recorder.start() {
         Ok(_) => {
             info!("START recording from microphone ...");
-
-            // change recording state
             IS_RECORDING.store(true, Ordering::SeqCst);
-
-            // success
             Ok(())
         }
         Err(msg) => {
             error!("Failed to START audio recording: {}", msg);
-
-            // fail
             Err(())
         }
     }
 }
 
 pub fn stop_recording() -> Result<(), ()> {
-    // ensure microphone is initialized & recording is in process
-    if RECORDER.get().is_some() && IS_RECORDING.load(Ordering::SeqCst) {
-        // stop recording
-        match RECORDER.get().unwrap().stop() {
-            Ok(_) => {
-                info!("STOP recording from microphone ...");
-
-                // change recording state
-                IS_RECORDING.store(false, Ordering::SeqCst);
-
-                // success
-                return Ok(());
-            }
-            Err(msg) => {
-                error!("Failed to STOP audio recording: {}", msg);
-
-                // fail
-                return Err(());
-            }
-        }
+    if !IS_RECORDING.load(Ordering::SeqCst) {
+        return Ok(()); // already stopped or not yet initialized
     }
 
-    Ok(()) // if already stopped or not yet initialized
+    let guard = RECORDER.read();
+    let Some(recorder) = guard.as_ref() else {
+        return Ok(());
+    };
+
+    match recorder.stop() {
+        Ok(_) => {
+            info!("STOP recording from microphone ...");
+            IS_RECORDING.store(false, Ordering::SeqCst);
+            Ok(())
+        }
+        Err(msg) => {
+            error!("Failed to STOP audio recording: {}", msg);
+            Err(())
+        }
+    }
 }
 
 pub fn list_audio_devices() -> Vec<String> {

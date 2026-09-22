@@ -1,23 +1,28 @@
 mod rustpotter;
 mod vosk;
 
-use once_cell::sync::OnceCell;
+use parking_lot::RwLock;
 
 use crate::config::structs::WakeWordEngine;
 
 use crate::DB;
 
-static WAKE_WORD_ENGINE: OnceCell<WakeWordEngine> = OnceCell::new();
+// the engine changes with the settings
+static WAKE_WORD_ENGINE: RwLock<Option<WakeWordEngine>> = RwLock::new(None);
 
 pub fn init() -> Result<(), String> {
-    if WAKE_WORD_ENGINE.get().is_some() {
+    if WAKE_WORD_ENGINE.read().is_some() {
         return Ok(());
     }
+    reinit()
+}
 
-    let engine = DB.get().unwrap().read().wake_word_engine;
+// (Re)build the wake word engine from the current settings.
+pub fn reinit() -> Result<(), String> {
+    let engine = DB.get().map(|db| db.read().wake_word_engine)
+        .unwrap_or(crate::config::DEFAULT_WAKE_WORD_ENGINE);
 
-    WAKE_WORD_ENGINE.set(engine)
-        .map_err(|_| "Wake word engine already set".to_string())?;
+    *WAKE_WORD_ENGINE.write() = Some(engine);
 
     match engine {
         WakeWordEngine::Porcupine => {
@@ -38,7 +43,7 @@ pub fn init() -> Result<(), String> {
 }
 
 pub fn data_callback(frame_buffer: &[i16]) -> Option<i32> {
-    match WAKE_WORD_ENGINE.get()? {
+    match (*WAKE_WORD_ENGINE.read())? {
         WakeWordEngine::Porcupine => None,
         WakeWordEngine::Rustpotter => rustpotter::data_callback(frame_buffer),
         WakeWordEngine::Vosk => vosk::data_callback(frame_buffer),
