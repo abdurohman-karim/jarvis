@@ -38,10 +38,17 @@ jobs:
       - name: Build core tests
         run: cargo test -p jarvis-core --lib --no-run
 
-      - name: Run core tests
-        run: cargo test -p jarvis-core --lib -- --nocapture
-        env:
-          RUST_BACKTRACE: 1
+      # one step per module so a failure is visible from the step list alone
+      - name: Test db
+        run: cargo test -p jarvis-core --lib -- db::
+      - name: Test commands
+        run: cargo test -p jarvis-core --lib -- commands::
+      - name: Test audio
+        run: cargo test -p jarvis-core --lib -- audio
+      - name: Test lua
+        run: cargo test -p jarvis-core --lib -- lua::
+      - name: Test everything else
+        run: cargo test -p jarvis-core --lib -- --skip db:: --skip commands:: --skip audio --skip lua::
 
       - name: Build assistant + cli
         run: cargo build -p jarvis-app -p jarvis-cli
