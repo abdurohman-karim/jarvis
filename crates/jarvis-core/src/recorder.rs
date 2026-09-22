@@ -3,12 +3,20 @@ mod pvrecorder;
 // mod cpal;
 // mod portaudio;
 
+use std::time::{Duration, Instant};
+
 use once_cell::sync::OnceCell;
+use parking_lot::Mutex;
 
 use crate::{config, config::structs::RecorderType, DB};
 
 static RECORDER_TYPE: OnceCell<RecorderType> = OnceCell::new();
 static FRAME_LENGTH: OnceCell<u32> = OnceCell::new();
+
+// Enumerating audio devices goes through the OS audio stack (CoreAudio / WASAPI) and takes
+// seconds on some machines; startup used to do it 3-4 times. Cache the list for a while.
+static DEVICES_CACHE: Mutex<Option<(Instant, Vec<String>)>> = Mutex::new(None);
+const DEVICES_CACHE_TTL: Duration = Duration::from_secs(30);
 
 pub fn init() -> Result<(), ()> {
     // set default recorder type
@@ -17,7 +25,7 @@ pub fn init() -> Result<(), ()> {
 
     // some info
     info!("Loading recorder ...");
-    info!("Available audio_devices are:\n{:?}", get_audio_devices());
+    debug!("Available audio_devices are:\n{:?}", get_audio_devices());
 
     // load given recorder
     match RECORDER_TYPE.get().unwrap() {
@@ -139,19 +147,29 @@ pub fn get_selected_microphone_index() -> i32 {
 }
 
 pub fn get_audio_devices() -> Vec<String> {
-    match RECORDER_TYPE.get() {
-        Some(RecorderType::PvRecorder) => pvrecorder::list_audio_devices(),
-        Some(RecorderType::PortAudio) => {
-            todo!();
-        }
-        Some(RecorderType::Cpal) => {
-            todo!();
-        }
-        None => {
-            // not initialized yet, default to pvrecorder
-            pvrecorder::list_audio_devices()
+    {
+        let cache = DEVICES_CACHE.lock();
+        if let Some((at, devices)) = cache.as_ref() {
+            if at.elapsed() < DEVICES_CACHE_TTL {
+                return devices.clone();
+            }
         }
     }
+
+    refresh_audio_devices()
+}
+
+// Re-enumerate audio devices, bypassing the cache (e.g. after plugging in a microphone).
+pub fn refresh_audio_devices() -> Vec<String> {
+    let devices = match RECORDER_TYPE.get() {
+        Some(RecorderType::PvRecorder) | None => pvrecorder::list_audio_devices(),
+        Some(RecorderType::PortAudio) | Some(RecorderType::Cpal) => {
+            todo!();
+        }
+    };
+
+    *DEVICES_CACHE.lock() = Some((Instant::now(), devices.clone()));
+    devices
 }
 
 pub fn get_audio_device_name(idx: i32) -> String {
