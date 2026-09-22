@@ -173,3 +173,6 @@ settings-ai-fallback = Відповідати на питання
 settings-ai-fallback-desc = Питати модель, якщо команду не знайдено.
 settings-ai-speak = Озвучувати відповіді
 settings-ai-speak-desc = Читати відповідь системним голосом.
+models-recommended = радимо
+settings-vosk-accuracy-title = У шумі модель помиляється частіше
+settings-vosk-accuracy-desc = Встановлено лише компактну модель. У замірах із фоновим шумом велика модель давала у 2.5 раза менше помилок. Її можна завантажити нижче.

@@ -85,6 +85,9 @@
         us: "English", ru: "Русский", uk: "Українська", de: "Deutsch", fr: "Français", es: "Español",
     }
 
+    // a "small" model is the fast but noise-sensitive one; suggest the large one once
+    $: hasLargeModel = availableVoskModels.some(m => !m.label.includes("small") && !m.label.includes("nano"))
+
     // installed models (bundled + downloaded), re-read after a download / delete
     async function loadVoskModels() {
         const voskModels = await invoke<{ name: string; language: string; size: string }[]>("list_vosk_models")
@@ -319,6 +322,16 @@
             </Field>
         {/key}
 
+        {#if availableVoskModels.length > 0 && !hasLargeModel}
+            <div class="notice info">
+                <Icon name="info" size={16} />
+                <div>
+                    <p class="notice-title">{t("settings-vosk-accuracy-title")}</p>
+                    <p class="notice-text">{t("settings-vosk-accuracy-desc")}</p>
+                </div>
+            </div>
+        {/if}
+
         {#if availableVoskModels.length === 0}
             <div class="notice warning">
                 <Icon name="alert" size={16} />
@@ -513,6 +526,11 @@
         &.warning {
             background: var(--warning-soft);
             color: var(--warning);
+        }
+
+        &.info {
+            background: var(--accent-soft);
+            color: var(--accent-hover);
         }
 
         .notice-title {

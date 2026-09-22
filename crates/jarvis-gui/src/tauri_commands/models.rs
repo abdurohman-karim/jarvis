@@ -20,6 +20,7 @@ pub struct CatalogModel {
     pub size_mb: u32,
     pub installed: bool,
     pub bundled: bool,
+    pub recommended: bool,
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -48,6 +49,7 @@ pub fn vosk_model_catalog() -> Vec<CatalogModel> {
                 size_mb: m.size_mb,
                 installed: found.is_some(),
                 bundled: found.map(|i| i.bundled).unwrap_or(false),
+                recommended: m.recommended,
             }
         })
         .collect()

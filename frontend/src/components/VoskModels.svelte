@@ -17,6 +17,7 @@
         size_mb: number
         installed: boolean
         bundled: boolean
+        recommended: boolean
     }
 
     interface Progress {
@@ -98,11 +99,12 @@
 <div class="models">
     {#each catalog as m (m.name)}
         {@const p = progress[m.name]}
-        <div class="model" class:installed={m.installed}>
+        <div class="model" class:installed={m.installed} class:suggested={m.recommended && !m.installed}>
             <div class="model-main">
                 <div class="model-title">
                     <span class="model-name">{m.name}</span>
                     <span class="model-lang">{languageNames[m.language] ?? m.language}</span>
+                    {#if m.recommended}<span class="badge">{t("models-recommended")}</span>{/if}
                 </div>
                 <span class="model-desc">{m.description} · {m.size_mb} MB</span>
 
@@ -153,6 +155,10 @@
         display: flex;
         flex-direction: column;
         gap: 6px;
+    }
+
+    .model.suggested {
+        border-color: rgba(99, 102, 241, 0.3);
     }
 
     .model {

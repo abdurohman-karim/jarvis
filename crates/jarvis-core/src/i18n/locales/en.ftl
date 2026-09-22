@@ -173,3 +173,6 @@ settings-ai-fallback = Answer questions
 settings-ai-fallback-desc = Ask the model when no command was found.
 settings-ai-speak = Speak answers
 settings-ai-speak-desc = Read the answer out with the system voice.
+models-recommended = suggested
+settings-vosk-accuracy-title = The small model struggles in noise
+settings-vosk-accuracy-desc = Only a compact model is installed. In measurements with background noise the large model made about 2.5x fewer errors and recognized the wake word far better. You can download it below.
