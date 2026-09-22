@@ -9,24 +9,6 @@ import shutil
 import sys
 import filecmp
 
-
-def link_or_copy_dir(src_dir, dst_dir):
-    """symlink a resource directory (fast, always current); copy if links are unavailable"""
-    if os.path.islink(dst_dir):
-        if os.path.realpath(dst_dir) == os.path.realpath(src_dir):
-            return "up to date"
-        os.unlink(dst_dir)
-    elif os.path.isdir(dst_dir):
-        shutil.rmtree(dst_dir)
-
-    try:
-        os.symlink(os.path.realpath(src_dir), dst_dir, target_is_directory=True)
-        return "linked"
-    except OSError:
-        # Windows without developer mode, or a filesystem without symlinks
-        shutil.copytree(src_dir, dst_dir)
-        return "copied"
-
 # some config vars
 # format: (source, destination_name)
 SOURCE = (
@@ -65,6 +47,19 @@ TARGET_DIRS = (
 )
 
 ABS_PATH = os.getcwd() + "/"
+
+
+def resolves_into_source(src_path, dst_path):
+    """True if dst resolves to src (e.g. dst is a symlink back into the repo).
+
+    Copying a file onto itself truncates it. This happened once: resource directories
+    under target/ were symlinked back to resources/, and tauri-build - which copies
+    everything listed in bundle.resources into the target directory - emptied 148 source
+    files. Never write through such a destination.
+    """
+    src_real = os.path.realpath(src_path)
+    dst_real = os.path.realpath(dst_path)
+    return dst_real == src_real or dst_real.startswith(src_real + os.sep)
 
 # flags
 force_overwrite = "--force" in sys.argv
@@ -167,12 +162,21 @@ for tdir in TARGET_DIRS:
             target_name = dest_name if dest_name else os.path.basename(src.rstrip('/'))
             full_target_dir_path = os.path.join(tdir, target_name)
 
+            if resolves_into_source(src_path, full_target_dir_path):
+                print("[!] Destination resolves back into the source, skipping: ", src, "->", target_name)
+                continue
+
             if sync_mode:
-                # dev builds: link instead of copying (resources/vosk alone is hundreds of MB,
-                # and a linked directory can never go stale)
-                link_target = full_target_dir_path.rstrip("/\\")
-                os.makedirs(os.path.dirname(link_target), exist_ok=True)
-                print(f"[~] {link_or_copy_dir(src_path, link_target)}: {src} -> {target_name}")
+                # sync: update changed, add new, remove orphans
+                if os.path.isdir(full_target_dir_path):
+                    c, u, r = sync_directory(src_path, full_target_dir_path)
+                    if c or u or r:
+                        print(f"[~] Synced: {src} -> {target_name} (+{c} new, ~{u} updated, -{r} removed)")
+                    else:
+                        print(f"[=] Up to date: {src} -> {target_name}")
+                else:
+                    shutil.copytree(src_path, full_target_dir_path)
+                    print("[+] Directory copied: ", src, "->", target_name)
 
             elif os.path.isdir(full_target_dir_path):
                 if force_overwrite:

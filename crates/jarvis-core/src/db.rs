@@ -54,6 +54,13 @@ pub fn save_settings(settings: &structs::Settings) -> Result<(), std::io::Error>
         serde_json::to_string_pretty(&settings).unwrap(),
     )?;
 
+    // the file holds API keys: keep it readable by this user only
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&db_file_path, std::fs::Permissions::from_mode(0o600))?;
+    }
+
     info!("Settings saved to: {:#}", db_file_path.display());
     Ok(())
 }

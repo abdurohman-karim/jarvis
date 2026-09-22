@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::config::structs::SpeechToTextEngine;
 use crate::config::structs::WakeWordEngine;
 use crate::config::structs::NoiseSuppressionBackend;
+use crate::models::Task;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Settings {
@@ -82,16 +83,26 @@ impl Settings {
                     _ => return Err(format!("unknown wake word engine: '{}'", val)),
                 };
             }
-            // backend ids are lowercase (code backends: "none", "energy", "intent-classifier", ...;
-            // model ids come from model.toml and are lowercase by convention)
+            // Backend ids are either a code backend ("none", "energy", "intent-classifier")
+            // or a model id from the catalog, so the value space is open - but it is not
+            // arbitrary: an unknown id used to be accepted here and then silently fall back
+            // to a default at init time, which is how mis-cased values from the GUI went
+            // unnoticed. Ids are lowercase by convention; validation is skipped while the
+            // model registry is not initialized.
             "intent_backend" => {
-                self.intent_backend = val.trim().to_lowercase();
+                let val = val.trim().to_lowercase();
+                crate::models::validate_backend(Task::Intent, &val)?;
+                self.intent_backend = val;
             }
             "slots_backend" => {
-                self.slots_backend = val.trim().to_lowercase();
+                let val = val.trim().to_lowercase();
+                crate::models::validate_backend(Task::Slots, &val)?;
+                self.slots_backend = val;
             }
             "vad_backend" => {
-                self.vad_backend = val.trim().to_lowercase();
+                let val = val.trim().to_lowercase();
+                crate::models::validate_backend(Task::Vad, &val)?;
+                self.vad_backend = val;
             }
             "selected_gliner_model" => {
                 self.gliner_model = val.to_string();
@@ -234,6 +245,21 @@ mod tests {
         ] {
             settings.set(key, value).unwrap_or_else(|e| panic!("{}={}: {}", key, value, e));
         }
+    }
+
+    // the ids the settings UI offers come from the same catalog the validation uses
+    #[test]
+    fn unknown_backend_is_rejected_once_the_catalog_is_known() {
+        // without a registry every id is accepted (settings must stay writable)
+        let mut settings = Settings::default();
+        assert!(settings.set("vad_backend", "whatever").is_ok());
+
+        crate::models::init().ok();
+        assert!(settings.set("vad_backend", "energy").is_ok());
+        let err = settings.set("vad_backend", "enrgy").unwrap_err();
+        assert!(err.contains("unknown backend"), "{}", err);
+        // the rejected value must not have been stored
+        assert_eq!(settings.get("vad_backend").as_deref(), Some("energy"));
     }
 
     #[test]

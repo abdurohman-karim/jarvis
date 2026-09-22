@@ -65,3 +65,23 @@ pub fn get_options(task: Task) -> Vec<BackendOption> {
 pub fn is_valid_backend(task: Task, backend_id: &str) -> bool {
     registry().with_catalog(|models| catalog::is_valid_backend(task, backend_id, models))
 }
+
+// Validate a backend id for a task. Returns Ok while the registry is not initialized yet:
+// settings must stay writable before models are scanned (and in tests).
+pub fn validate_backend(task: Task, backend_id: &str) -> Result<(), String> {
+    let Some(registry) = REGISTRY.get() else {
+        return Ok(());
+    };
+
+    if registry.with_catalog(|models| catalog::is_valid_backend(task, backend_id, models)) {
+        return Ok(());
+    }
+
+    let known: Vec<String> = registry
+        .with_catalog(|models| catalog::get_options(task, models))
+        .into_iter()
+        .map(|o| o.id)
+        .collect();
+
+    Err(format!("unknown backend '{}', expected one of: {}", backend_id, known.join(", ")))
+}
