@@ -24,9 +24,9 @@ hound = "3.5"
 platform-dirs = "0.3"
 rodio = "0.21"
 kira = "0.11"
-pv_recorder = { git = "https://github.com/Priler/pvrecorder" }
+pv_recorder = { path = "vendor/pvrecorder" }
 vosk = "0.3"
-rustpotter = { git = "https://github.com/Priler/rustpotter" }
+rustpotter = { path = "vendor/rustpotter" }
 image = "0.25"
 parking_lot = "0.12.5"
 toml = "0.9.8"

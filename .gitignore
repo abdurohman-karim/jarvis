@@ -54,3 +54,6 @@ tree.txt
 
 # Ignore AI models
 /resources/models/*
+
+# vendored native libraries (pvrecorder)
+!/vendor/pvrecorder/data/lib/**
