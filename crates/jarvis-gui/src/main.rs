@@ -60,6 +60,7 @@ fn main() {
             // db
             tauri_commands::db_read,
             tauri_commands::db_write,
+            tauri_commands::db_write_many,
 
             // etc
             tauri_commands::get_app_version,

@@ -1,4 +1,5 @@
 use once_cell::sync::OnceCell;
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -13,6 +14,11 @@ use kira::{
 };
 
 static MANAGER: OnceCell<Mutex<AudioManager>> = OnceCell::new();
+
+// Decoded sounds by path. Reaction sounds are short mp3/wav files played over and over;
+// decoding them from disk on every play was the cost. StaticSoundData is Arc-backed, so
+// cloning a cached entry is cheap.
+static CACHE: Mutex<Option<HashMap<PathBuf, StaticSoundData>>> = Mutex::new(None);
 
 pub fn init() -> Result<(), ()> {
     if MANAGER.get().is_some() {
@@ -37,10 +43,24 @@ pub fn init() -> Result<(), ()> {
     }
 }
 
-// @TODO. Cache sounds in memory? With a pool of a certain size, for instance.
+fn load_cached(filename: &PathBuf) -> Result<StaticSoundData, kira::sound::FromFileError> {
+    if let Ok(cache) = CACHE.lock() {
+        if let Some(hit) = cache.as_ref().and_then(|c| c.get(filename)) {
+            return Ok(hit.clone());
+        }
+    }
+
+    let sound = StaticSoundData::from_file(filename)?;
+
+    if let Ok(mut cache) = CACHE.lock() {
+        cache.get_or_insert_with(HashMap::new).insert(filename.clone(), sound.clone());
+    }
+
+    Ok(sound)
+}
+
 pub fn play_sound(filename: &PathBuf) {
-    // load the file
-    match StaticSoundData::from_file(filename) {
+    match load_cached(filename) {
         Ok(sound_data) => {
             // sound_data.duration() can be used in order to sleep, if (for some reason) blocking behaviour is required
 

@@ -43,13 +43,16 @@ impl SettingsManager {
         Ok(())
     }
 
-    // write multiple settings at once, single save
+    // write multiple settings at once, single save. All-or-nothing: an invalid
+    // key or value leaves the settings untouched.
     pub fn write_many(&self, pairs: &[(&str, &str)]) -> Result<(), String> {
         let snapshot = {
             let mut settings = self.inner.write();
+            let mut updated = settings.clone();
             for (key, val) in pairs {
-                settings.set(key, val)?;
+                updated.set(key, val).map_err(|e| format!("{}: {}", key, e))?;
             }
+            *settings = updated;
             settings.clone()
         };
 

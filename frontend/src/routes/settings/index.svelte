@@ -47,6 +47,7 @@
 
     let saving = false
     let saved = false
+    let saveError = ""
     // settings were saved while the assistant was running: it only reads them at startup
     let restartNeeded = false
     let savedTimer: ReturnType<typeof setTimeout> | null = null
@@ -87,21 +88,23 @@
         saving = true
         saved = false
 
+        saveError = ""
         try {
-            await Promise.all([
-                invoke("db_write", { key: "assistant_voice", val: voiceVal }),
-                invoke("db_write", { key: "selected_microphone", val: selectedMicrophone }),
-                invoke("db_write", { key: "selected_wake_word_engine", val: selectedWakeWordEngine }),
-                invoke("db_write", { key: "intent_backend", val: selectedIntentBackend }),
-                invoke("db_write", { key: "slots_backend", val: selectedSlotsBackend }),
-                invoke("db_write", { key: "selected_gliner_model", val: selectedGlinerModel }),
-                invoke("db_write", { key: "selected_vosk_model", val: selectedVoskModel }),
-                invoke("db_write", { key: "noise_suppression", val: selectedNoiseSuppression }),
-                invoke("db_write", { key: "vad_backend", val: selectedVadBackend }),
-                invoke("db_write", { key: "gain_normalizer", val: gainNormalizerEnabled.toString() }),
-                invoke("db_write", { key: "api_key__picovoice", val: apiKeyPicovoice }),
-                invoke("db_write", { key: "api_key__openai", val: apiKeyOpenai })
-            ])
+            // one call, one file write, all-or-nothing
+            await invoke("db_write_many", { entries: [
+                ["assistant_voice", voiceVal],
+                ["selected_microphone", selectedMicrophone],
+                ["selected_wake_word_engine", selectedWakeWordEngine],
+                ["intent_backend", selectedIntentBackend],
+                ["slots_backend", selectedSlotsBackend],
+                ["selected_gliner_model", selectedGlinerModel],
+                ["selected_vosk_model", selectedVoskModel],
+                ["noise_suppression", selectedNoiseSuppression],
+                ["vad_backend", selectedVadBackend],
+                ["gain_normalizer", gainNormalizerEnabled.toString()],
+                ["api_key__picovoice", apiKeyPicovoice],
+                ["api_key__openai", apiKeyOpenai],
+            ]})
 
             assistantVoice.set(voiceVal)
             saved = true
@@ -110,6 +113,7 @@
             savedTimer = setTimeout(() => saved = false, 4000)
         } catch (err) {
             console.error("failed to save settings:", err)
+            saveError = String(err)
         } finally {
             saving = false
         }
@@ -356,6 +360,8 @@
                 <Icon name="refresh" size={14} />
                 {$assistantBusy ? t("btn-restarting") : t("btn-restart")}
             </Button>
+        {:else if saveError}
+            <span class="save-error" title={saveError}><Icon name="alert" size={14} /> {t("notification-error")}: {saveError}</span>
         {:else if saved}
             <span class="saved"><Icon name="check" size={14} /> {t("notification-saved")}</span>
         {/if}
@@ -471,6 +477,18 @@
         flex: 1;
         font-size: 12.5px;
         color: var(--warning);
+    }
+
+    .save-error {
+        flex: 1;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12.5px;
+        color: var(--danger);
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
     }
 
     .saved {
